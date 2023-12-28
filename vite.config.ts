@@ -5,6 +5,7 @@ import remarkFrontmatter from "remark-frontmatter";
 import remarkMdxFrontmatter from "remark-mdx-frontmatter";
 import rehypeHighlight from "rehype-highlight";
 import mdx from "@mdx-js/rollup";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 
 export default {
   resolve: {
@@ -37,5 +38,6 @@ export default {
     }),
     rezact(),
     rezact_mdx(),
+    basicSsl(),
   ],
 };
