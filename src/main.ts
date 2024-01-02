@@ -17,7 +17,8 @@ router.beforeEach(async (to) => {
 
   if (session && to.pathname === "/login") return "/";
   if (session) return to.pathname;
-  return "/login";
+
+  location.assign(import.meta.env.VITE_SIGN_IN_URL);
 });
 
 router.routeChanged();
