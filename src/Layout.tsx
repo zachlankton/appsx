@@ -1,11 +1,83 @@
+import { clerk } from "./main";
 import "./styles.css";
 
+class elmRef {
+  elm: any;
+  constructor(elm: any = null) {
+    this.elm = elm;
+  }
+  transition(from, to) {
+    this.elm.classList.replace(from, to);
+  }
+  show() {
+    this.elm.classList.remove("hidden");
+  }
+  hide() {
+    this.elm.classList.add("hidden");
+  }
+  addClick(fn) {
+    this.elm.addEventListener("click", fn);
+  }
+  removeClick(fn) {
+    this.elm.removeEventListener("click", fn);
+  }
+}
+
 export function MainLayout({ router }) {
-  console.log("ASDFASDF");
+  const mobileSidebarParentRef = new elmRef();
+  const mobileSideBarRef = new elmRef();
+  const mobileCloseButtonRef = new elmRef();
+  const sidebarBackdropRef = new elmRef();
+  const userMenuRef = new elmRef();
+  const body = new elmRef(document.body);
+
+  const openUserMenu = () => {
+    console.log(userMenuRef.elm.checkVisibility());
+    if (userMenuRef.elm.checkVisibility()) return;
+    userMenuRef.show();
+    setTimeout(() => {
+      userMenuRef.transition("opacity-0", "opacity-100");
+      userMenuRef.transition("scale-95", "scale-100");
+      body.addClick(closeUserMenu);
+    }, 10);
+  };
+
+  const closeUserMenu = () => {
+    userMenuRef.transition("opacity-100", "opacity-0");
+    userMenuRef.transition("scale-100", "scale-95");
+    setTimeout(() => {
+      userMenuRef.hide();
+      body.removeClick(closeUserMenu);
+    }, 110);
+  };
+
+  const mobileSidebarClick = () => {
+    mobileSidebarParentRef.show();
+    setTimeout(() => {
+      sidebarBackdropRef.transition("opacity-0", "opacity-100");
+      mobileSideBarRef.transition("-translate-x-full", "translate-x-0");
+      mobileCloseButtonRef.transition("opacity-0", "opacity-100");
+      mobileSidebarParentRef.addClick(closeMobileSidebar);
+    }, 10);
+  };
+  const closeMobileSidebar = () => {
+    sidebarBackdropRef.transition("opacity-100", "opacity-0");
+    mobileSideBarRef.transition("translate-x-0", "-translate-x-full");
+    mobileCloseButtonRef.transition("opacity-100", "opacity-0");
+    setTimeout(() => {
+      mobileSidebarParentRef.hide();
+      mobileSidebarParentRef.removeClick(closeMobileSidebar);
+    }, 310);
+  };
   return (
     <div>
       {/* <!-- Off-canvas menu for mobile, show/hide based on off-canvas menu state. --> */}
-      <div class="relative z-50 lg:hidden" role="dialog" aria-modal="true">
+      <div
+        class="relative z-50 hidden"
+        ref={mobileSidebarParentRef}
+        role="dialog"
+        aria-modal="true"
+      >
         {/* <!--
       Off-canvas menu backdrop, show/hide based on off-canvas menu state.
 
@@ -16,7 +88,10 @@ export function MainLayout({ router }) {
         From: "opacity-100"
         To: "opacity-0"
     --> */}
-        <div class="fixed inset-0 bg-gray-900/80"></div>
+        <div
+          class="fixed inset-0 bg-gray-900/80 transition-opacity ease-linear duration-300 opacity-0"
+          ref={sidebarBackdropRef}
+        ></div>
 
         <div class="fixed inset-0 flex">
           {/* <!--
@@ -29,7 +104,10 @@ export function MainLayout({ router }) {
           From: "translate-x-0"
           To: "-translate-x-full"
       --> */}
-          <div class="relative mr-16 flex w-full max-w-xs flex-1">
+          <div
+            ref={mobileSideBarRef}
+            class=" transition ease-in-out duration-300 -translate-x-full relative mr-16 flex w-full max-w-xs flex-1"
+          >
             {/* <!--
           Close button, show/hide based on off-canvas menu state.
 
@@ -40,8 +118,15 @@ export function MainLayout({ router }) {
             From: "opacity-100"
             To: "opacity-0"
         --> */}
-            <div class="absolute left-full top-0 flex w-16 justify-center pt-5">
-              <button type="button" class="-m-2.5 p-2.5">
+            <div
+              ref={mobileCloseButtonRef}
+              class=" transition ease-in-out duration-300 opacity-0 absolute left-full top-0 flex w-16 justify-center pt-5"
+            >
+              <button
+                onClick={closeMobileSidebar}
+                type="button"
+                class="-m-2.5 p-2.5"
+              >
                 <span class="sr-only">Close sidebar</span>
                 <svg
                   class="h-6 w-6 text-white"
@@ -289,7 +374,10 @@ export function MainLayout({ router }) {
       </div>
 
       {/* <!-- Static sidebar for desktop --> */}
-      <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+      <div
+        id="test"
+        class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col"
+      >
         {/* <!-- Sidebar component, swap this element with another sidebar if you like --> */}
         <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-gray-900 px-6 pb-4">
           <div class="flex h-16 shrink-0 items-center">
@@ -518,7 +606,11 @@ export function MainLayout({ router }) {
 
       <div class="lg:pl-72">
         <div class="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-          <button type="button" class="-m-2.5 p-2.5 text-gray-700 lg:hidden">
+          <button
+            onClick={mobileSidebarClick}
+            type="button"
+            class="-m-2.5 p-2.5 text-gray-700 lg:hidden"
+          >
             <span class="sr-only">Open sidebar</span>
             <svg
               class="h-6 w-6"
@@ -598,6 +690,7 @@ export function MainLayout({ router }) {
               {/* <!-- Profile dropdown --> */}
               <div class="relative">
                 <button
+                  onClick={openUserMenu}
                   type="button"
                   class="-m-1.5 flex items-center p-1.5"
                   id="user-menu-button"
@@ -607,7 +700,7 @@ export function MainLayout({ router }) {
                   <span class="sr-only">Open user menu</span>
                   <img
                     class="h-8 w-8 rounded-full bg-gray-50"
-                    src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+                    src={clerk.user?.imageUrl}
                     alt=""
                   />
                   <span class="hidden lg:flex lg:items-center">
@@ -615,7 +708,7 @@ export function MainLayout({ router }) {
                       class="ml-4 text-sm font-semibold leading-6 text-gray-900"
                       aria-hidden="true"
                     >
-                      Tom Cook
+                      {clerk.user?.firstName}
                     </span>
                     <svg
                       class="ml-2 h-5 w-5 text-gray-400"
@@ -643,7 +736,8 @@ export function MainLayout({ router }) {
                 To: "transform opacity-0 scale-95"
             --> */}
                 <div
-                  class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none"
+                  ref={userMenuRef}
+                  class="hidden transition ease-in-out duration-100 transform opacity-0 scale-95 absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none"
                   role="menu"
                   aria-orientation="vertical"
                   aria-labelledby="user-menu-button"
@@ -661,6 +755,10 @@ export function MainLayout({ router }) {
                   </a>
                   <a
                     href="#"
+                    onClick={() => {
+                      clerk.signOut();
+                      location.reload();
+                    }}
                     class="block px-3 py-1 text-sm leading-6 text-gray-900"
                     role="menuitem"
                     tabindex="-1"

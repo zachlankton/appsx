@@ -1,5 +1,5 @@
 import { useRouter } from "rezact/router";
-import { Page as FourOhFour } from "./404";
+import { Page as FourOhFour } from "./Pages/404";
 
 const router = useRouter();
 
@@ -15,6 +15,11 @@ const routes = [
     path: "/page1",
     component: () => import("src/Pages/PageOne"),
     title: "Testing Page Uno",
+  },
+  {
+    path: "/login",
+    component: () => import("src/Pages/Login"),
+    title: "Login",
   },
 ];
 
