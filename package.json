@@ -17,9 +17,7 @@
   },
   "dependencies": {
     "@clerk/clerk-js": "^4.68.1",
-    "@clerk/themes": "^1.7.9",
     "@rezact/rezact": "v1.0.15-beta.34",
-    "@tailwindcss/forms": "^0.5.7",
-    "boxicons": "^2.1.4"
+    "@tailwindcss/forms": "^0.5.7"
   }
 }

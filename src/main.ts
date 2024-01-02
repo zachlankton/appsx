@@ -1,15 +1,22 @@
 import { router } from "./appRouter";
-import Clerk from "@clerk/clerk-js";
+import {
+  getClient,
+  session,
+  setClerkDev,
+  setClerkDomain,
+} from "./lib/ClerkLite";
 
-const clerk = new Clerk(import.meta.env.VITE_CLERK_PUBLIC_KEY);
-const test = clerk.load();
+if (import.meta.env.DEV) {
+  setClerkDev();
+}
+setClerkDomain(import.meta.env.VITE_CLERK_DOMAIN);
 
-export { clerk };
-
-router.beforeEach(async (to, from) => {
-  console.log("beforeEach", { to, from });
+const test = getClient();
+router.beforeEach(async (to) => {
   await test;
-  if (clerk.session) return to.pathname;
+
+  if (session && to.pathname === "/login") return "/";
+  if (session) return to.pathname;
   return "/login";
 });
 

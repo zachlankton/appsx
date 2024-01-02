@@ -1,21 +1,12 @@
-import { clerk } from "src/main";
-
-await clerk.load();
+import { Btn } from "src/components/Buttons";
+import { signIn } from "src/lib/ClerkLite";
 
 export function Page() {
-  const mountSignIn = (elm) => {
-    clerk.mountSignIn(elm, {
-      // appearance: {
-      //   elements: {
-      //     formButtonPrimary: "bg-slate-500",
-      //   },
-      // },
-    });
-  };
-
   return (
     <div class=" w-[455px] m-auto pt-24">
-      <div onMount={mountSignIn}></div>
+      <Btn className="w-full" onClick={() => signIn()}>
+        Sign In with GitHub
+      </Btn>
     </div>
   );
 }

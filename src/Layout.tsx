@@ -1,5 +1,14 @@
-import { clerk } from "./main";
+import { addClerkChangeHook, signOut } from "./lib/ClerkLite";
 import "./styles.css";
+let $userImageUrl = "";
+let $userFirstName = "";
+
+addClerkChangeHook((event, user) => {
+  if (event === "signIn" || event === "getClient") {
+    $userImageUrl = user.image_url || "";
+    $userFirstName = user.first_name;
+  }
+});
 
 class elmRef {
   elm: any;
@@ -32,7 +41,6 @@ export function MainLayout({ router }) {
   const body = new elmRef(document.body);
 
   const openUserMenu = () => {
-    console.log(userMenuRef.elm.checkVisibility());
     if (userMenuRef.elm.checkVisibility()) return;
     userMenuRef.show();
     setTimeout(() => {
@@ -700,7 +708,7 @@ export function MainLayout({ router }) {
                   <span class="sr-only">Open user menu</span>
                   <img
                     class="h-8 w-8 rounded-full bg-gray-50"
-                    src={clerk.user?.imageUrl}
+                    src={$userImageUrl}
                     alt=""
                   />
                   <span class="hidden lg:flex lg:items-center">
@@ -708,7 +716,7 @@ export function MainLayout({ router }) {
                       class="ml-4 text-sm font-semibold leading-6 text-gray-900"
                       aria-hidden="true"
                     >
-                      {clerk.user?.firstName}
+                      {$userFirstName}
                     </span>
                     <svg
                       class="ml-2 h-5 w-5 text-gray-400"
@@ -755,8 +763,8 @@ export function MainLayout({ router }) {
                   </a>
                   <a
                     href="#"
-                    onClick={() => {
-                      clerk.signOut();
+                    onClick={async () => {
+                      await signOut();
                       location.reload();
                     }}
                     class="block px-3 py-1 text-sm leading-6 text-gray-900"
