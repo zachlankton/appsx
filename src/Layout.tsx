@@ -41,7 +41,7 @@ export function MainLayout({ router }) {
   const body = new elmRef(document.body);
 
   const openUserMenu = () => {
-    if (userMenuRef.elm.checkVisibility()) return;
+    if (!userMenuRef.elm.classList.contains("hidden")) return;
     userMenuRef.show();
     setTimeout(() => {
       userMenuRef.transition("opacity-0", "opacity-100");
