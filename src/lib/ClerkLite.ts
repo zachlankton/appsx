@@ -25,19 +25,20 @@ export function setClerkDomain(d) {
   getClerkDbJwt();
 }
 
-async function textOrError(resp) {
-  const text = await resp.text().catch((error) => {
-    error;
-  });
-  return text;
-}
-
 async function dataOrError(resp) {
-  const jsonData = await resp.json().catch((error) => {
+  const textData = await resp.text().catch((error) => {
     error;
   });
-  if (jsonData.error) return textOrError(resp);
-  return jsonData;
+
+  if (textData === undefined || textData === null || textData.error)
+    return { error: { textData } };
+
+  try {
+    const jsonData = JSON.parse(textData);
+    return jsonData;
+  } catch (err) {
+    return { textData };
+  }
 }
 
 export async function getClerkDbJwt() {
