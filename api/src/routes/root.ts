@@ -12,17 +12,56 @@ J7/G02P7xv5qqgiKa6Gw9SYT9K8exW+P0fe/72FxTuFoQ7Y62HVFautoxdd1+A82
 YQIDAQAB
 -----END PUBLIC KEY-----`;
 
+interface SessionPayload {
+  exp: number;
+  iat: number;
+  sub: string;
+  iss: string;
+  jti: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  image: string;
+  hasImage: boolean;
+  meta: any;
+}
+
 async function verifyJwt(request: FastifyRequest, reply: FastifyReply) {
   const token = request.headers?.authorization?.slice(7) || "";
   try {
     const jwtToken = jwt.decode<{}, { alg: string }>(token);
 
     if (!jwtToken) throw new Error("Invalid token");
-    if (!jwtToken.header) throw new Error("Invalid token");
-    if (!jwtToken.header.alg) throw new Error("Invalid token");
+    if (!jwtToken.header) throw new Error("Invalid token - requires header");
+    if (!jwtToken.header.alg)
+      throw new Error("Invalid token - requires alg header");
+    if (!jwtToken.payload) throw new Error("Invalid token - requires payload");
+    if (!jwtToken.payload.exp)
+      throw new Error("Invalid token - requires exp claim");
+    if (!jwtToken.payload.iat)
+      throw new Error("Invalid token - requires iat claim");
+    if (!jwtToken.payload.sub)
+      throw new Error("Invalid token - requires sub claim");
+    if (!jwtToken.payload.iss)
+      throw new Error("Invalid token - requires iss claim");
+    if (!jwtToken.payload.jti)
+      throw new Error("Invalid token - requires jti claim");
+    if (!jwtToken.payload.email)
+      throw new Error("Invalid token - requires email claim");
+    if (!jwtToken.payload.firstName)
+      throw new Error("Invalid token - requires firstName claim");
+    if (!jwtToken.payload.lastName)
+      throw new Error("Invalid token - requires lastName claim");
+    if (!jwtToken.payload.meta)
+      throw new Error("Invalid token - requires meta claim");
+    if (!jwtToken.payload.image)
+      throw new Error("Invalid token - requires image claim");
+    if (!jwtToken.payload.hasImage)
+      throw new Error("Invalid token - requires hasImage claim");
 
-    const algorithm = jwtToken?.header?.alg && jwtToken.header.alg;
+    const algorithm = jwtToken.header.alg;
     await jwt.verify(token, publicKey, { algorithm, throwError: true });
+    request.session = jwtToken.payload as SessionPayload;
   } catch (e: any) {
     console.log(e);
     reply.status(401).send({ error: e.message });
@@ -81,6 +120,7 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
   fastify.get("/test-jwt", async function (request, reply) {
     setCors(reply);
     await verifyJwt(request, reply);
+    console.log(request.session);
     reply.send({ ok: true });
   });
 

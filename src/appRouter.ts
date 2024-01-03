@@ -9,12 +9,17 @@ const routes = [
   {
     path: "/",
     component: () => import("src/App"),
-    title: "Testing Root Title",
+    title: "AppsX",
+  },
+  {
+    path: "/landing",
+    component: () => import("src/Pages/LandingPage"),
+    title: "AppsX",
   },
   {
     path: "/page1",
     component: () => import("src/Pages/PageOne"),
-    title: "Testing Page Uno",
+    title: "AppsX",
   },
   {
     path: "/login",

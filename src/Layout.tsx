@@ -10,7 +10,7 @@ addClerkChangeHook((event, user) => {
   }
 });
 
-class elmRef {
+export class elmRef {
   elm: any;
   constructor(elm: any = null) {
     this.elm = elm;
@@ -78,7 +78,11 @@ export function MainLayout({ router }) {
     }, 310);
   };
   return (
-    <div>
+    <div
+      onMount={() =>
+        (document.head.parentElement!.className = "h-full bg-zinc-200")
+      }
+    >
       {/* <!-- Off-canvas menu for mobile, show/hide based on off-canvas menu state. --> */}
       <div
         class="relative z-50 hidden"
@@ -191,7 +195,7 @@ export function MainLayout({ router }) {
                       </li>
                       <li>
                         <a
-                          href="/page1"
+                          href="/landing"
                           class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
                         >
                           <svg
@@ -424,7 +428,7 @@ export function MainLayout({ router }) {
                   </li>
                   <li>
                     <a
-                      href="/page1"
+                      href="/landing"
                       class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
                     >
                       <svg
@@ -753,7 +757,7 @@ export function MainLayout({ router }) {
                 >
                   {/* <!-- Active: "bg-gray-50", Not Active: "" --> */}
                   <a
-                    href="#"
+                    href={import.meta.env.VITE_USER_PROFILE_URL}
                     class="block px-3 py-1 text-sm leading-6 text-gray-900"
                     role="menuitem"
                     tabindex="-1"
