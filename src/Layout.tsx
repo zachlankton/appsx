@@ -159,13 +159,13 @@ export function MainLayout({ router }) {
 
             {/* <!-- Sidebar component, swap this element with another sidebar if you like --> */}
             <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-gray-900 px-6 pb-4 ring-1 ring-white/10">
-              <div class="flex h-16 shrink-0 items-center">
-                <img
-                  class="h-8 w-auto"
-                  src="https://tailwindui.com/img/logos/mark.svg?color=indigo&shade=500"
-                  alt="Your Company"
-                />
-              </div>
+              <a
+                href="/landing"
+                class="flex h-16 shrink-0 items-center text-white"
+              >
+                <span class="sr-only">Apps Ex</span>
+                🍑 AppsX
+              </a>
               <nav class="flex flex-1 flex-col">
                 <ul role="list" class="flex flex-1 flex-col gap-y-7">
                   <li>
@@ -392,13 +392,10 @@ export function MainLayout({ router }) {
       >
         {/* <!-- Sidebar component, swap this element with another sidebar if you like --> */}
         <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-gray-900 px-6 pb-4">
-          <div class="flex h-16 shrink-0 items-center">
-            <img
-              class="h-8 w-auto"
-              src="https://tailwindui.com/img/logos/mark.svg?color=indigo&shade=500"
-              alt="Your Company"
-            />
-          </div>
+          <a href="/landing" class="flex h-16 shrink-0 items-center text-white">
+            <span class="sr-only">Apps Ex</span>
+            🍑 AppsX
+          </a>
           <nav class="flex flex-1 flex-col">
             <ul role="list" class="flex flex-1 flex-col gap-y-7">
               <li>
@@ -624,20 +621,7 @@ export function MainLayout({ router }) {
             class="-m-2.5 p-2.5 text-gray-700 lg:hidden"
           >
             <span class="sr-only">Open sidebar</span>
-            <svg
-              class="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-              />
-            </svg>
+            🍑
           </button>
 
           {/* <!-- Separator --> */}
