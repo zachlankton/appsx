@@ -2,6 +2,8 @@ import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import jwt from "@tsndr/cloudflare-worker-jwt";
 
 import { FastifyReply } from "fastify/types/reply.js";
+import { createNewAccount, createNewAppDatabase } from "../lib/couchAdmin.js";
+import { getUser } from "../lib/clerkAdmin.js";
 const publicKey = `-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2pMML5vmkJ1I0jxULKFv
 n8jslbq+vXrVoPBD58m/VntJxeJwbDN4530SK0q1PqMybLlmEaQWClbtxkAQsCqc
@@ -28,6 +30,10 @@ interface SessionPayload {
 
 async function verifyJwt(request: FastifyRequest, reply: FastifyReply) {
   const token = request.headers?.authorization?.slice(7) || "";
+  if (!token) {
+    reply.status(401).send({ error: "No token provided" });
+    throw new Error("No token provided");
+  }
   try {
     const jwtToken = jwt.decode<{}, { alg: string }>(token);
 
@@ -86,6 +92,7 @@ async function dataOrError(resp: Response) {
 
 function setCors(reply: FastifyReply) {
   reply.header("Access-Control-Allow-Origin", "*");
+  reply.header("access-control-max-age", "3600");
   reply.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE");
   reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
@@ -93,8 +100,10 @@ function setCors(reply: FastifyReply) {
 const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
   fastify.options("*", function (request, reply) {
     setCors(reply);
+    reply.header("cache-control", "max-age=3600");
     reply.send();
   });
+
   fastify.get("/", function (request, reply) {
     reply.send({ hello: "world" });
   });
@@ -124,9 +133,108 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     reply.send({ ok: true });
   });
 
-  fastify.post("/create_database/:db_name", function (request, reply) {
-    console.log(request.params);
-    reply.send(request.params);
+  fastify.post("/create_new_account", async function (request, reply) {
+    setCors(reply);
+    await verifyJwt(request, reply);
+    const user = await getUser(request.session!.sub);
+    const acctObj = user.public_metadata.accounts || {};
+    const accts = Object.keys(acctObj);
+
+    if (accts.length > 0) {
+      reply.status(400).send({
+        error: "Accounts already exist",
+      });
+      return;
+    }
+    request.session!.meta = user.public_metadata;
+    const response = await createNewAccount(request.session);
+    reply.send(response);
+  });
+
+  interface CreateDbParams {
+    account_name: string;
+    db_name: string;
+  }
+
+  function validateAccountName(account_name: string) {
+    const re = /^acct[a-zA-Z0-9]{16}$/;
+    return re.test(account_name);
+  }
+
+  function validateDbName(db_name: string) {
+    const re = /^db[a-zA-Z0-9]{32}$/;
+    return re.test(db_name);
+  }
+
+  function validateCreateDbParams(reply: FastifyReply, params: CreateDbParams) {
+    if (!params.account_name && !validateAccountName(params.account_name)) {
+      reply.status(400).send({ error: "account_name is missing or invalid" });
+      throw new Error("account_name is required");
+    }
+    // if (!params.db_name && !validateDbName(params.db_name)) {
+    //   reply.status(400).send({ error: "db_name is required" });
+    //   throw new Error("db_name is missing or invalid");
+    // }
+  }
+
+  fastify.post(
+    "/create_database/:account_name/:db_name",
+    async function (request, reply) {
+      setCors(reply);
+
+      const { account_name, db_name } = request.params as CreateDbParams;
+      if (account_name && !validateAccountName(account_name)) {
+        reply.status(400).send({ error: "account_name is missing or invalid" });
+        throw new Error("account_name is required");
+      }
+
+      await verifyJwt(request, reply);
+
+      const user = await getUser(request.session!.sub);
+      const acctObj = user.public_metadata.accounts || {};
+
+      if (!acctObj[account_name]) {
+        reply.status(400).send({
+          error:
+            "You do no have permission to create a database against this account",
+        });
+        return;
+      }
+
+      request.session!.meta = user.public_metadata;
+      const response = await createNewAppDatabase(
+        account_name,
+        db_name,
+        request.session
+      );
+
+      reply.send(response);
+    }
+  );
+
+  interface CreateDbUserParams {
+    account_name: string;
+  }
+
+  interface CreateDbUserBody {
+    username: string;
+    password: string;
+    extraData: any;
+  }
+
+  fastify.post("/user/:account_name", async function (request, reply) {
+    setCors(reply);
+    await verifyJwt(request, reply);
+    const { account_name } = request.params as CreateDbUserParams;
+    const { username, password, extraData } = request.body as CreateDbUserBody;
+
+    console.log({ username, password, extraData });
+
+    if (!account_name && !validateAccountName(account_name)) {
+      reply.status(400).send({ error: "account_name is missing or invalid" });
+      throw new Error("account_name is required");
+    }
+    reply.send({ account_name, username, password, extraData });
   });
 };
 
