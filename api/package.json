@@ -20,20 +20,21 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "fastify": "^4.0.0",
-    "fastify-plugin": "^4.0.0",
     "@fastify/autoload": "^5.0.0",
     "@fastify/sensible": "^5.0.0",
+    "@tsndr/cloudflare-worker-jwt": "^2.3.2",
+    "argon2": "^0.31.2",
+    "fastify": "^4.0.0",
     "fastify-cli": "^6.0.0",
-    "@tsndr/cloudflare-worker-jwt": "^2.3.2"
+    "fastify-plugin": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.4.4",
     "@types/tap": "^15.0.5",
-    "ts-node": "^10.4.0",
+    "c8": "^7.13.0",
     "concurrently": "^8.2.2",
     "fastify-tsconfig": "^2.0.0",
-    "typescript": "^5.2.2",
-    "c8": "^7.13.0"
+    "ts-node": "^10.4.0",
+    "typescript": "^5.2.2"
   }
 }
