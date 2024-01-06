@@ -5,6 +5,7 @@ let active_session_id = "";
 let changeHooks: any = [];
 export let user: any = {};
 export let session: any = null;
+let jwtInterval: any = null;
 
 export function addClerkChangeHook(fn) {
   changeHooks.push(fn);
@@ -77,39 +78,39 @@ export async function signOut() {
   return respData;
 }
 
-export async function signIn() {
-  if (!prod && !clerkDbJwt) return null;
+// export async function signIn() {
+//   if (!prod && !clerkDbJwt) return null;
 
-  const data = {
-    strategy: "oauth_github",
-    redirect_url: location.origin,
-    action_complete_redirect_url: "/",
-  };
-  const formData = Object.keys(data)
-    .map((key) => encodeURIComponent(key) + "=" + encodeURIComponent(data[key]))
-    .join("&");
+//   const data = {
+//     strategy: "oauth_github",
+//     redirect_url: location.origin,
+//     action_complete_redirect_url: "/",
+//   };
+//   const formData = Object.keys(data)
+//     .map((key) => encodeURIComponent(key) + "=" + encodeURIComponent(data[key]))
+//     .join("&");
 
-  const resp = await fetch(
-    `https://${domain}/v1/client/sign_ins?_clerk_js_version=4.68.1${clerkDbJwt}`,
-    {
-      headers: {
-        "content-type": "application/x-www-form-urlencoded",
-      },
-      referrer: "http://localhost:5173/",
-      referrerPolicy: "strict-origin-when-cross-origin",
-      body: formData,
-      method: "POST",
-    }
-  );
+//   const resp = await fetch(
+//     `https://${domain}/v1/client/sign_ins?_clerk_js_version=4.68.1${clerkDbJwt}`,
+//     {
+//       headers: {
+//         "content-type": "application/x-www-form-urlencoded",
+//       },
+//       referrer: "http://localhost:5173/",
+//       referrerPolicy: "strict-origin-when-cross-origin",
+//       body: formData,
+//       method: "POST",
+//     }
+//   );
 
-  const respData = await dataOrError(resp);
-  location.assign(
-    respData.response.first_factor_verification
-      .external_verification_redirect_url
-  );
-  runChangeHooks("signIn");
-  return respData;
-}
+//   const respData = await dataOrError(resp);
+//   location.assign(
+//     respData.response.first_factor_verification
+//       .external_verification_redirect_url
+//   );
+//   runChangeHooks("signIn");
+//   return respData;
+// }
 
 export async function getClient() {
   if (!prod && !clerkDbJwt) return null;
@@ -134,7 +135,16 @@ export async function getClient() {
   if (!session) return respData;
   user = session.user;
   runChangeHooks("getClient");
+  startJwtTimer();
   return respData;
+}
+
+function startJwtTimer() {
+  if (jwtInterval) return;
+  jwtInterval = setTimeout(() => {
+    jwtInterval = null;
+    getSession();
+  }, 1000 * 60);
 }
 
 export function getUser() {
@@ -142,6 +152,7 @@ export function getUser() {
 }
 
 export async function getSession() {
+  if (jwtInterval) return session.last_active_token;
   if (!prod && !clerkDbJwt) return null;
   if (!active_session_id) return null;
 
@@ -158,6 +169,8 @@ export async function getSession() {
   );
 
   const respData = await dataOrError(resp);
+  session.last_active_token.jwt = respData.jwt;
   runChangeHooks("getSession");
+  startJwtTimer();
   return respData;
 }
