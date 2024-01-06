@@ -21,11 +21,6 @@ const routes = [
     component: () => import("src/Pages/PageOne"),
     title: "AppsX",
   },
-  {
-    path: "/login",
-    component: () => import("src/Pages/Login"),
-    title: "Login",
-  },
 ];
 
 router.addRoutesFromConfig(routes);
