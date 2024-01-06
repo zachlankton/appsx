@@ -1,45 +1,16 @@
-import crypto from "crypto";
+import * as argon2 from "argon2";
+import { SessionPayload } from "../fastify.js";
+import { updateClerkUserMetaData } from "./clerkAdmin.js";
+import { dataOrThrow, shortID } from "./utils.js";
 
 let dbAdmin = process.env.DB_ADMIN || "";
 let dbPassword = process.env.DB_PASSWORD || "";
 let dbUrl = process.env.DB_URL;
+// let dbName = process.env.DB_NAME || "";
 let Authorization = createBasicAuthHeader(dbAdmin, dbPassword);
 let headersList = {
   Authorization,
 };
-
-async function dataOrError(resp: Response) {
-  const textData = (await resp.text().catch((error) => {
-    error;
-  })) as any;
-
-  if (textData === undefined || textData === null || textData.error)
-    return { error: { textData } };
-
-  try {
-    const jsonData = JSON.parse(textData);
-    return jsonData;
-  } catch (error) {
-    return textData;
-  }
-}
-
-function logAndThrow(error: any, errorMsg: any) {
-  console.log(error);
-  console.trace();
-  throw errorMsg;
-}
-
-async function dataOrThrow(response: any, errorMsg: string) {
-  if (!response) logAndThrow(response, errorMsg);
-  if (!response.ok) logAndThrow(response, errorMsg);
-  if (response.error) logAndThrow(response, errorMsg);
-
-  let data = await dataOrError(response);
-
-  if (!data || data.error) logAndThrow(response, errorMsg);
-  return data;
-}
 
 function createBasicAuthHeader(username: string, password: string) {
   const base64Credentials = btoa(username + ":" + password);
@@ -139,15 +110,75 @@ type DbOwner = {
   id: string;
 };
 
-export async function createNewAppDatabase(dbName: string, owner: DbOwner) {
-  const newDbId = "db" + crypto.randomUUID().replaceAll("-", "");
+export async function createNewAccount(
+  session: SessionPayload | undefined,
+  displayName = "default"
+) {
+  const newAcctId = "acct" + shortID(16);
 
-  const updateDoc = {
-    updates: {
-      updatefun1:
-        'function (doc, req) {\n  if (!doc) {\n    if ("id" in req && req["id"]) {\n      // create new document\n      const newDoc = JSON.parse(req["body"]);\n      newDoc["_id"] = req["id"];\n      newDoc["created_by"] = req["userCtx"]["name"];\n      newDoc["created_at"] = new Date().toISOString();\n\n      return [newDoc, "New Doc Created"];\n    }\n    // change nothing in database\n    return [null, "No ID Provided"];\n  }\n  const updateDoc = JSON.parse(req["body"]);\n  updateDoc["_id"] = doc["_id"];\n  updateDoc["_rev"] = doc["_rev"];\n  updateDoc["created_at"] = doc["created_at"];\n  updateDoc["created_by"] = doc["created_by"];\n  updateDoc["edited_at"] = new Date().toISOString();\n  updateDoc["edited_by"] = req["userCtx"]["name"];\n  return [updateDoc, "Edited Doc " + doc["_id"]];\n}\n',
+  await createDatabase(newAcctId);
+  console.log("New Account Database Created", newAcctId);
+
+  await createDesignDoc(newAcctId, "update_doc", updateDoc);
+  console.log(newAcctId, "Update Design doc created");
+
+  await upsert(newAcctId, `${newAcctId}_info`, {
+    displayName,
+    owner: {
+      firstName: session?.firstName,
+      lastName: session?.lastName,
+      email: session?.email,
+      id: session?.sub,
     },
-    language: "javascript",
+  });
+
+  console.log(newAcctId, "New Account Database info doc created");
+  session!.meta.accounts = session!.meta.accounts || {};
+  session!.meta.accounts[newAcctId] = {};
+  await updateClerkUserMetaData(session!.meta, session!.sub);
+
+  return { ok: true, newAcctId };
+}
+
+export async function createNewUser(
+  accountId: string,
+  username: string,
+  password: string,
+  extraData: any = {}
+) {
+  const newUserId = "user_" + shortID(16);
+  const hashedPassword = await argon2.hash(password);
+
+  await upsert(accountId, newUserId, {
+    username,
+    hashedPassword,
+    ...extraData,
+  });
+
+  console.log(newUserId, "New User Database info doc created");
+
+  return "SUCCESS";
+}
+
+const updateDoc = {
+  updates: {
+    updatefun1:
+      'function (doc, req) {\n  if (!doc) {\n    if ("id" in req && req["id"]) {\n      // create new document\n      const newDoc = JSON.parse(req["body"]);\n      newDoc["_id"] = req["id"];\n      newDoc["created_by"] = req["userCtx"]["name"];\n      newDoc["created_at"] = new Date().toISOString();\n\n      return [newDoc, "New Doc Created"];\n    }\n    // change nothing in database\n    return [null, "No ID Provided"];\n  }\n  const updateDoc = JSON.parse(req["body"]);\n  updateDoc["_id"] = doc["_id"];\n  updateDoc["_rev"] = doc["_rev"];\n  updateDoc["created_at"] = doc["created_at"];\n  updateDoc["created_by"] = doc["created_by"];\n  updateDoc["edited_at"] = new Date().toISOString();\n  updateDoc["edited_by"] = req["userCtx"]["name"];\n  return [updateDoc, "Edited Doc " + doc["_id"]];\n}\n',
+  },
+  language: "javascript",
+};
+
+export async function createNewAppDatabase(
+  accountName: string,
+  dbName: string,
+  session: SessionPayload | undefined
+) {
+  const newDbId = "db" + shortID(16);
+  const owner = {
+    firstName: session!.firstName,
+    lastName: session!.lastName,
+    email: session!.email,
+    id: session!.sub,
   };
 
   const appDbInfo: any = {
@@ -183,4 +214,16 @@ YQIDAQAB
 
   await upsert(newDbId, `${newDbId}_info`, appDbInfo);
   console.log(newDbId, "Database info doc created");
+
+  const accountDoc = await getDoc(accountName, `${accountName}_info`);
+  accountDoc.databases = accountDoc.databases || {};
+  accountDoc.databases[newDbId] = appDbInfo;
+  await upsert(accountName, `${accountName}_info`, accountDoc);
+  console.log(accountName, "Account info doc updated");
+
+  session!.meta.databases = session!.meta.databases || {};
+  session!.meta.databases[newDbId] = {};
+  await updateClerkUserMetaData(session!.meta, session!.sub);
+
+  return { ok: true, newDbId };
 }
