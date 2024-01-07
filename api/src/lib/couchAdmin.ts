@@ -1,7 +1,8 @@
 import * as argon2 from "argon2";
 import { SessionPayload } from "../fastify.js";
 import { updateClerkUserMetaData } from "./clerkAdmin.js";
-import { dataOrThrow, shortID } from "./utils.js";
+import { dataOrThrow, generateID } from "./utils.js";
+import jwt from "@tsndr/cloudflare-worker-jwt";
 
 let dbAdmin = process.env.DB_ADMIN || "";
 let dbPassword = process.env.DB_PASSWORD || "";
@@ -11,6 +12,34 @@ let Authorization = createBasicAuthHeader(dbAdmin, dbPassword);
 let headersList = {
   Authorization,
 };
+
+const privateKey = process.env.PRIVATE_JWT_KEY;
+
+type DbOwner = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  id: string;
+};
+
+export async function generateJWT(
+  { firstName, lastName, email, id }: DbOwner,
+  roles: string[] = []
+) {
+  const payload = {
+    exp: Math.floor(Date.now() / 1000) + 60,
+    iat: Math.floor(Date.now() / 1000),
+    sub: email,
+    iss: "AppsX",
+    email,
+    firstName,
+    lastName,
+    userId: id,
+    "_couchdb.roles": roles,
+  };
+  const token = await jwt.sign(payload, privateKey, { algorithm: "HS256" });
+  return token;
+}
 
 function createBasicAuthHeader(username: string, password: string) {
   const base64Credentials = btoa(username + ":" + password);
@@ -103,18 +132,11 @@ export async function updatePerms(dbName: string) {
   return await dataOrThrow(response, "Could not update permissions");
 }
 
-type DbOwner = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  id: string;
-};
-
 export async function createNewAccount(
   session: SessionPayload | undefined,
   displayName = "default"
 ) {
-  const newAcctId = "acct" + shortID(16);
+  const newAcctId = "acct" + generateID();
 
   await createDatabase(newAcctId);
   console.log("New Account Database Created", newAcctId);
@@ -146,7 +168,7 @@ export async function createNewUser(
   password: string,
   extraData: any = {}
 ) {
-  const newUserId = "user_" + shortID(16);
+  const newUserId = "user_" + generateID();
   const hashedPassword = await argon2.hash(password);
 
   await upsert(accountId, newUserId, {
@@ -173,7 +195,7 @@ export async function createNewAppDatabase(
   dbName: string,
   session: SessionPayload | undefined
 ) {
-  const newDbId = "db" + shortID(16);
+  const newDbId = "db" + generateID();
   const owner = {
     firstName: session!.firstName,
     lastName: session!.lastName,
