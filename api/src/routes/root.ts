@@ -161,34 +161,31 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     return re.test(account_name);
   }
 
-  function validateDbName(db_name: string) {
-    const re = /^db[a-zA-Z0-9]{32}$/;
-    return re.test(db_name);
-  }
-
-  function validateCreateDbParams(reply: FastifyReply, params: CreateDbParams) {
-    if (!params.account_name && !validateAccountName(params.account_name)) {
-      reply.status(400).send({ error: "account_name is missing or invalid" });
-      throw new Error("account_name is required");
-    }
-    // if (!params.db_name && !validateDbName(params.db_name)) {
-    //   reply.status(400).send({ error: "db_name is required" });
-    //   throw new Error("db_name is missing or invalid");
-    // }
-  }
-
-  fastify.post(
-    "/create_database/:account_name/:db_name",
-    async function (request, reply) {
+  fastify.post("/create_database/:account_name/:db_name", {
+    schema: {
+      params: {
+        type: "object",
+        properties: {
+          account_name: {
+            type: "string",
+            minLength: 20,
+            maxLength: 20,
+            pattern: "^acct[a-zA-Z0-9]{16}$",
+          },
+          db_name: {
+            type: "string",
+            pattern: "^[a-zA-Z0-9]{1,24}$",
+            minLength: 1,
+            maxLength: 24,
+          },
+        },
+        required: ["account_name", "db_name"],
+      },
+    },
+    handler: async function (request, reply) {
       setCors(reply);
-
-      const { account_name, db_name } = request.params as CreateDbParams;
-      if (account_name && !validateAccountName(account_name)) {
-        reply.status(400).send({ error: "account_name is missing or invalid" });
-        throw new Error("account_name is required");
-      }
-
       await verifyJwt(request, reply);
+      const { account_name, db_name } = request.params as CreateDbParams;
 
       const user = await getUser(request.session!.sub);
       const acctObj = user.public_metadata.accounts || {};
@@ -209,8 +206,8 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
       );
 
       reply.send(response);
-    }
-  );
+    },
+  });
 
   interface CreateDbUserParams {
     account_name: string;
