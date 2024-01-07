@@ -2,7 +2,11 @@ import { FastifyPluginAsync, FastifyRequest } from "fastify";
 import jwt from "@tsndr/cloudflare-worker-jwt";
 
 import { FastifyReply } from "fastify/types/reply.js";
-import { createNewAccount, createNewAppDatabase } from "../lib/couchAdmin.js";
+import {
+  createInviteCode,
+  createNewAccountFromInvite,
+  createNewAppDatabase,
+} from "../lib/couchAdmin.js";
 import { getUser } from "../lib/clerkAdmin.js";
 const publicKey = `-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2pMML5vmkJ1I0jxULKFv
@@ -54,16 +58,16 @@ async function verifyJwt(request: FastifyRequest, reply: FastifyReply) {
       throw new Error("Invalid token - requires jti claim");
     if (!jwtToken.payload.email)
       throw new Error("Invalid token - requires email claim");
-    if (!jwtToken.payload.firstName)
-      throw new Error("Invalid token - requires firstName claim");
-    if (!jwtToken.payload.lastName)
-      throw new Error("Invalid token - requires lastName claim");
+    // if (!jwtToken.payload.firstName)
+    //   throw new Error("Invalid token - requires firstName claim");
+    // if (!jwtToken.payload.lastName)
+    //   throw new Error("Invalid token - requires lastName claim");
     if (!jwtToken.payload.meta)
       throw new Error("Invalid token - requires meta claim");
     if (!jwtToken.payload.image)
       throw new Error("Invalid token - requires image claim");
-    if (!jwtToken.payload.hasImage)
-      throw new Error("Invalid token - requires hasImage claim");
+    // if (!jwtToken.payload.hasImage)
+    //   throw new Error("Invalid token - requires hasImage claim");
 
     const algorithm = jwtToken.header.alg;
     await jwt.verify(token, publicKey, { algorithm, throwError: true });
@@ -133,22 +137,66 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     reply.send({ ok: true });
   });
 
-  fastify.post("/create_new_account", async function (request, reply) {
-    setCors(reply);
-    await verifyJwt(request, reply);
-    const user = await getUser(request.session!.sub);
-    const acctObj = user.public_metadata.accounts || {};
-    const accts = Object.keys(acctObj);
+  fastify.post("/invite", {
+    schema: {
+      body: {
+        type: "object",
+        properties: {
+          email: { type: "string", format: "email" },
+        },
+        required: ["email"],
+      },
+    },
+    handler: async function (request, reply) {
+      await verifyJwt(request, reply);
+      const user = await getUser(request.session!.sub);
+      if (user.public_metadata.appsx_admin !== true) {
+        return reply.status(401).send({
+          error: "You do not have permission to invite users",
+        });
+      }
+      const { email } = request.body as { email: string };
+      const inviteCode = await createInviteCode(email);
+      reply.send({ inviteCode });
+    },
+  });
 
-    if (accts.length > 0) {
-      reply.status(400).send({
-        error: "Accounts already exist",
-      });
-      return;
-    }
-    request.session!.meta = user.public_metadata;
-    const response = await createNewAccount(request.session);
-    reply.send(response);
+  fastify.post("/create_new_account/:invite_code", {
+    schema: {
+      params: {
+        type: "object",
+        properties: {
+          invite_code: {
+            type: "string",
+            minLength: 29,
+            maxLength: 29,
+            pattern: "^invite_[a-zA-Z0-9]{22}$",
+          },
+        },
+        required: ["invite_code"],
+      },
+    },
+    handler: async function (request, reply) {
+      setCors(reply);
+      await verifyJwt(request, reply);
+      const user = await getUser(request.session!.sub);
+      const acctObj = user.public_metadata.accounts || {};
+      const accts = Object.keys(acctObj);
+
+      if (accts.length > 0) {
+        reply.status(400).send({
+          error: "Accounts already exist",
+        });
+        return;
+      }
+      request.session!.meta = user.public_metadata;
+      const { invite_code } = request.params as { invite_code: string };
+      const response = await createNewAccountFromInvite(
+        invite_code,
+        request.session
+      );
+      reply.send(response);
+    },
   });
 
   interface CreateDbParams {

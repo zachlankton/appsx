@@ -1,8 +1,9 @@
 export function Btn(props) {
-  let { size, color, onClick } = props;
+  let { size, color, onClick, type } = props;
   onClick = onClick || (() => {});
   color = color || "primary";
   size = size || "md";
+  type = type || "button";
 
   const sizes = {
     xs: "rounded px-2 py-1 text-xs",
@@ -35,7 +36,7 @@ export function Btn(props) {
     props.class;
 
   return (
-    <button onClick={onClick} class={classes}>
+    <button type={type} onClick={onClick} class={classes}>
       {props.children}
     </button>
   );

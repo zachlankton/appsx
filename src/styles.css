@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.invalid {
+  @apply text-red-600 ring-red-600 focus:ring-red-600 !important;
+  @apply placeholder:text-red-300 !important;
+}

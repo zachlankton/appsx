@@ -15,6 +15,13 @@ const test = getClient();
 router.beforeEach(async (to) => {
   await test;
 
+  if (session) {
+    const accounts = session.user.public_metadata.accounts;
+    if (!accounts) return "/new-account";
+    const accountIds = Object.keys(accounts);
+    if (accountIds.length === 0) return "/new-account";
+  }
+
   if (session && to.pathname === "/login") return "/";
   if (session) return to.pathname;
 

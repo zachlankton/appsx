@@ -7,7 +7,7 @@ import jwt from "@tsndr/cloudflare-worker-jwt";
 let dbAdmin = process.env.DB_ADMIN || "";
 let dbPassword = process.env.DB_PASSWORD || "";
 let dbUrl = process.env.DB_URL;
-// let dbName = process.env.DB_NAME || "";
+let dbName = process.env.DB_NAME || "";
 let Authorization = createBasicAuthHeader(dbAdmin, dbPassword);
 let headersList = {
   Authorization,
@@ -65,7 +65,7 @@ export async function createDatabase(dbName: string) {
     error;
   });
 
-  console.log({ dbName });
+  console.log("Creating Database", { dbName });
   return await dataOrThrow(response, "Could not create database");
 }
 
@@ -97,10 +97,14 @@ export async function upsert(dbName: string, docid: string, doc: any) {
     error;
   });
 
-  return await dataOrThrow(response, "Could not create database info doc");
+  return await dataOrThrow(response, "Could not upsert doc");
 }
 
-export async function getDoc(dbName: string, docid: string) {
+export async function getDoc(
+  dbName: string,
+  docid: string,
+  customErr = "Could not get doc"
+) {
   const response = await fetch(`${dbUrl}/${dbName}/${docid}`, {
     method: "GET",
     headers: headersList,
@@ -108,7 +112,7 @@ export async function getDoc(dbName: string, docid: string) {
     error;
   });
 
-  return await dataOrThrow(response, "Could not get doc");
+  return await dataOrThrow(response, customErr);
 }
 
 export async function updatePerms(dbName: string) {
@@ -136,7 +140,7 @@ export async function createNewAccount(
   session: SessionPayload | undefined,
   displayName = "default"
 ) {
-  const newAcctId = "acct" + generateID();
+  const newAcctId = "acct" + generateID().toLowerCase();
 
   await createDatabase(newAcctId);
   console.log("New Account Database Created", newAcctId);
@@ -195,7 +199,7 @@ export async function createNewAppDatabase(
   dbName: string,
   session: SessionPayload | undefined
 ) {
-  const newDbId = "db" + generateID();
+  const newDbId = "db" + generateID().toLowerCase();
   const owner = {
     firstName: session!.firstName,
     lastName: session!.lastName,
@@ -248,4 +252,27 @@ YQIDAQAB
   await updateClerkUserMetaData(session!.meta, session!.sub);
 
   return { ok: true, newDbId };
+}
+
+export async function createInviteCode(email: string) {
+  const inviteCode = "invite_" + generateID();
+  await upsert(dbName, inviteCode, { email });
+  return { ok: true, inviteCode };
+}
+
+export async function createNewAccountFromInvite(
+  inviteCode: string,
+  session: SessionPayload | undefined
+) {
+  const inviteDoc = await getDoc(dbName, inviteCode, "Invalid invite code");
+
+  const { email } = inviteDoc;
+  // verify email matches session email
+  if (email !== session?.email)
+    return { ok: false, error: "Invalid invite code" };
+
+  const { newAcctId } = await createNewAccount(session);
+  // await createNewUser(newAcctId, email, generateID());
+
+  return { ok: true, newAcctId };
 }

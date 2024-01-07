@@ -1,10 +1,11 @@
 import { MainLayout } from "./Layout";
 import { Btn } from "./components/Buttons";
 import { getSession } from "./lib/ClerkLite";
+const apiUrl = import.meta.env.VITE_API_URL;
 
 async function getSess() {
   const { jwt } = await getSession();
-  const resp = await fetch(`http://localhost:3000/test-jwt`, {
+  const resp = await fetch(`${apiUrl}/test-jwt`, {
     headers: {
       Authorization: `Bearer ${jwt}`,
     },

@@ -83,12 +83,19 @@ export async function dataOrError(resp: Response) {
 function logAndThrow(error: any, errorMsg: any) {
   console.log(error);
   console.trace();
-  throw errorMsg;
+  throw `{"error": "${errorMsg}"}`;
+}
+
+async function logAndThrowWithData(error: any, errorMsg: any) {
+  let data = await dataOrError(error);
+  console.log(error, data);
+  console.trace();
+  throw `{"error": "${errorMsg}"}`;
 }
 
 export async function dataOrThrow(response: any, errorMsg: string) {
   if (!response) logAndThrow(response, errorMsg);
-  if (!response.ok) logAndThrow(response, errorMsg);
+  if (!response.ok) await logAndThrowWithData(response, errorMsg);
   if (response.error) logAndThrow(response, errorMsg);
 
   let data = await dataOrError(response);

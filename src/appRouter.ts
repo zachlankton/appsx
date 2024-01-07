@@ -21,6 +21,11 @@ const routes = [
     component: () => import("src/Pages/PageOne"),
     title: "AppsX",
   },
+  {
+    path: "/new-account",
+    component: () => import("src/Pages/NewAccount"),
+    title: "AppsX",
+  },
 ];
 
 router.addRoutesFromConfig(routes);
