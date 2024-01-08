@@ -29,6 +29,8 @@ router.beforeEach(async (to) => {
   }
 
   if (session && to.pathname === "/login") return "/";
+  if (session && to.pathname === "/new-account") return "/";
+
   if (session) return to.pathname;
 
   return "/landing";

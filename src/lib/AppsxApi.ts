@@ -8,10 +8,17 @@ export async function createAccountWithInvite(inviteCode: string) {
     Authorization: "Bearer " + jwt,
   };
 
-  let response = await fetch(`${apiUrl}/create_new_account/${inviteCode}`, {
-    method: "POST",
-    headers: headersList,
-  });
+  let response: any = await fetch(
+    `${apiUrl}/create_new_account/${inviteCode}`,
+    {
+      method: "POST",
+      headers: headersList,
+    },
+  ).catch((err) => ({ err }));
 
-  return await response.json();
+  if (response.err) {
+    return response;
+  } else {
+    return await response.json();
+  }
 }

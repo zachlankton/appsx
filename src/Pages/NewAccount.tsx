@@ -4,15 +4,21 @@ import { Input } from "src/components/ValidatorInput";
 import { elmRef } from "src/Layout";
 import { signOut } from "src/lib/ClerkLite";
 import { createAccountWithInvite } from "src/lib/AppsxApi";
+import { router } from "src/appRouter";
 
 export function Page() {
-  const handleSubmit = (ev) => {
+  const handleSubmit = async (ev) => {
     ev.preventDefault();
     const form = ev.target;
     if (form.checkValidity()) {
       const data = getFormData(form);
-      const results = createAccountWithInvite(data.invite_code);
-      console.log({ data, results });
+      const results = await createAccountWithInvite(data.invite_code);
+      console.log(results);
+      if (results.ok) {
+        router.routeRequest("/");
+      } else {
+        alert(results.message);
+      }
     }
   };
 
