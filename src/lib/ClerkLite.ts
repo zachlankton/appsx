@@ -42,6 +42,25 @@ async function dataOrError(resp) {
   }
 }
 
+// Function to set a cookie
+export function setCookie(name, value) {
+  var expires = "";
+  var date = new Date();
+  // Set the cookie to expire in 1 year
+  date.setTime(date.getTime() + 365 * 24 * 60 * 60 * 1000);
+  expires = "; expires=" + date.toUTCString();
+
+  // Setting the cookie
+  document.cookie =
+    name +
+    "=" +
+    (value || "") +
+    expires +
+    "; path=/; domain=localhost; SameSite=Lax";
+}
+
+// Example usage: setCookie("yourCookieName", "yourCookieValue");
+
 export async function getClerkDbJwt() {
   if (prod) return "";
   const localJwt = localStorage.getItem("clerk-db-jwt");
@@ -53,11 +72,13 @@ export async function getClerkDbJwt() {
     `https://${domain}/v1/dev_browser?_clerk_js_version=4.68.1`,
     {
       method: "POST",
+      credentials: "include",
     }
   );
 
   const data = await dataOrError(resp);
   localStorage.setItem("clerk-db-jwt", data.token);
+  setCookie("__clerk_db_jwt", data.token);
   clerkDbJwt = `&__dev_session=${data.token}`;
   runChangeHooks("clerkDbJwt");
 }
@@ -111,8 +132,20 @@ export async function signOut() {
 //   runChangeHooks("signIn");
 //   return respData;
 // }
+function getDevJwtFromCookie() {
+  const cookie = document.cookie;
+  const cookies: any = cookie.split("; ");
+
+  const jwtCookie = cookies.find((row) => row.startsWith("__clerk_db_jwt="));
+
+  if (!jwtCookie) return;
+  const jwt = jwtCookie.split("=")[1];
+  clerkDbJwt = `&__dev_session=${jwt}`;
+  return jwt;
+}
 
 export async function getClient() {
+  if (!prod) getDevJwtFromCookie();
   if (!prod && !clerkDbJwt) return null;
 
   const resp = await fetch(

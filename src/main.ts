@@ -4,7 +4,13 @@ import {
   session,
   setClerkDev,
   setClerkDomain,
+  setCookie,
 } from "./lib/ClerkLite";
+
+if (location.hash.startsWith("#__clerk_db_jwt")) {
+  console.log("setting cookie");
+  setCookie("__clerk_db_jwt", location.hash.slice(16, -1));
+}
 
 if (import.meta.env.DEV) {
   setClerkDev();
