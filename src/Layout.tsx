@@ -101,7 +101,7 @@ export function MainLayout({ router }) {
         To: "opacity-0"
     --> */}
         <div
-          class="fixed inset-0 bg-gray-900/80 transition-opacity ease-linear duration-300 opacity-0"
+          class="fixed inset-0 bg-gray-900/80 opacity-0 transition-opacity duration-300 ease-linear"
           ref={sidebarBackdropRef}
         ></div>
 
@@ -118,7 +118,7 @@ export function MainLayout({ router }) {
       --> */}
           <div
             ref={mobileSideBarRef}
-            class=" transition ease-in-out duration-300 -translate-x-full relative mr-16 flex w-full max-w-xs flex-1"
+            class=" relative mr-16 flex w-full max-w-xs flex-1 -translate-x-full transition duration-300 ease-in-out"
           >
             {/* <!--
           Close button, show/hide based on off-canvas menu state.
@@ -132,7 +132,7 @@ export function MainLayout({ router }) {
         --> */}
             <div
               ref={mobileCloseButtonRef}
-              class=" transition ease-in-out duration-300 opacity-0 absolute left-full top-0 flex w-16 justify-center pt-5"
+              class=" absolute left-full top-0 flex w-16 justify-center pt-5 opacity-0 transition duration-300 ease-in-out"
             >
               <button
                 onClick={closeMobileSidebar}
@@ -174,7 +174,7 @@ export function MainLayout({ router }) {
                         {/* <!-- Current: "bg-gray-800 text-white", Default: "text-gray-400 hover:text-white hover:bg-gray-800" --> */}
                         <a
                           href="/"
-                          class="bg-gray-800 text-white group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                          class="group flex gap-x-3 rounded-md bg-gray-800 p-2 text-sm font-semibold leading-6 text-white"
                         >
                           <svg
                             class="h-6 w-6 shrink-0"
@@ -196,7 +196,7 @@ export function MainLayout({ router }) {
                       <li>
                         <a
                           href="/landing"
-                          class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                          class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                         >
                           <svg
                             class="h-6 w-6 shrink-0"
@@ -218,7 +218,7 @@ export function MainLayout({ router }) {
                       <li>
                         <a
                           href="#"
-                          class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                          class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                         >
                           <svg
                             class="h-6 w-6 shrink-0"
@@ -240,7 +240,7 @@ export function MainLayout({ router }) {
                       <li>
                         <a
                           href="#"
-                          class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                          class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                         >
                           <svg
                             class="h-6 w-6 shrink-0"
@@ -262,7 +262,7 @@ export function MainLayout({ router }) {
                       <li>
                         <a
                           href="#"
-                          class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                          class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                         >
                           <svg
                             class="h-6 w-6 shrink-0"
@@ -284,7 +284,7 @@ export function MainLayout({ router }) {
                       <li>
                         <a
                           href="#"
-                          class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                          class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                         >
                           <svg
                             class="h-6 w-6 shrink-0"
@@ -319,7 +319,7 @@ export function MainLayout({ router }) {
                         {/* <!-- Current: "bg-gray-800 text-white", Default: "text-gray-400 hover:text-white hover:bg-gray-800" --> */}
                         <a
                           href="#"
-                          class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                          class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                         >
                           <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-[0.625rem] font-medium text-gray-400 group-hover:text-white">
                             H
@@ -330,7 +330,7 @@ export function MainLayout({ router }) {
                       <li>
                         <a
                           href="#"
-                          class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                          class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                         >
                           <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-[0.625rem] font-medium text-gray-400 group-hover:text-white">
                             T
@@ -341,7 +341,7 @@ export function MainLayout({ router }) {
                       <li>
                         <a
                           href="#"
-                          class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                          class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                         >
                           <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-[0.625rem] font-medium text-gray-400 group-hover:text-white">
                             W
@@ -404,7 +404,7 @@ export function MainLayout({ router }) {
                     {/* <!-- Current: "bg-gray-800 text-white", Default: "text-gray-400 hover:text-white hover:bg-gray-800" --> */}
                     <a
                       href="/"
-                      class="bg-gray-800 text-white group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                      class="group flex gap-x-3 rounded-md bg-gray-800 p-2 text-sm font-semibold leading-6 text-white"
                     >
                       <svg
                         class="h-6 w-6 shrink-0"
@@ -426,7 +426,7 @@ export function MainLayout({ router }) {
                   <li>
                     <a
                       href="/landing"
-                      class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                      class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                     >
                       <svg
                         class="h-6 w-6 shrink-0"
@@ -448,7 +448,7 @@ export function MainLayout({ router }) {
                   <li>
                     <a
                       href="#"
-                      class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                      class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                     >
                       <svg
                         class="h-6 w-6 shrink-0"
@@ -470,7 +470,7 @@ export function MainLayout({ router }) {
                   <li>
                     <a
                       href="#"
-                      class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                      class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                     >
                       <svg
                         class="h-6 w-6 shrink-0"
@@ -492,7 +492,7 @@ export function MainLayout({ router }) {
                   <li>
                     <a
                       href="#"
-                      class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                      class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                     >
                       <svg
                         class="h-6 w-6 shrink-0"
@@ -514,7 +514,7 @@ export function MainLayout({ router }) {
                   <li>
                     <a
                       href="#"
-                      class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                      class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                     >
                       <svg
                         class="h-6 w-6 shrink-0"
@@ -549,7 +549,7 @@ export function MainLayout({ router }) {
                     {/* <!-- Current: "bg-gray-800 text-white", Default: "text-gray-400 hover:text-white hover:bg-gray-800" --> */}
                     <a
                       href="#"
-                      class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                      class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                     >
                       <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-[0.625rem] font-medium text-gray-400 group-hover:text-white">
                         H
@@ -560,7 +560,7 @@ export function MainLayout({ router }) {
                   <li>
                     <a
                       href="#"
-                      class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                      class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                     >
                       <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-[0.625rem] font-medium text-gray-400 group-hover:text-white">
                         T
@@ -571,7 +571,7 @@ export function MainLayout({ router }) {
                   <li>
                     <a
                       href="#"
-                      class="text-gray-400 hover:text-white hover:bg-gray-800 group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
+                      class="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-400 hover:bg-gray-800 hover:text-white"
                     >
                       <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-[0.625rem] font-medium text-gray-400 group-hover:text-white">
                         W
@@ -733,7 +733,7 @@ export function MainLayout({ router }) {
             --> */}
                 <div
                   ref={userMenuRef}
-                  class="hidden transition ease-in-out duration-100 transform opacity-0 scale-95 absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5 focus:outline-none"
+                  class="absolute right-0 z-10 mt-2.5 hidden w-32 origin-top-right scale-95 transform rounded-md bg-white py-2 opacity-0 shadow-lg ring-1 ring-gray-900/5 transition duration-100 ease-in-out focus:outline-none"
                   role="menu"
                   aria-orientation="vertical"
                   aria-labelledby="user-menu-button"

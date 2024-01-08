@@ -100,19 +100,66 @@ export async function upsert(dbName: string, docid: string, doc: any) {
   return await dataOrThrow(response, "Could not upsert doc");
 }
 
+const docCache: any = {};
+const docCacheTimers: any = {};
+
 export async function getDoc(
   dbName: string,
   docid: string,
-  customErr = "Could not get doc"
+  opts: {
+    customErrMessage?: string;
+    customErrStatusCode?: number;
+    cacheResponseTime?: number;
+    skipCache?: boolean;
+  } = {}
 ) {
-  const response = await fetch(`${dbUrl}/${dbName}/${docid}`, {
+  opts.skipCache = opts.skipCache || false;
+
+  const cacheKey = `${dbUrl}/${dbName}/${docid}`;
+  if (!opts.skipCache && docCache[cacheKey]) {
+    const cacheTimer = docCacheTimers[cacheKey];
+    if (Date.now() > cacheTimer.expires) {
+      console.log("Serving cached response and refreshing cacheKey", cacheKey);
+      clearTimeout(cacheTimer.cacheTimer);
+      delete docCacheTimers[cacheKey];
+      setTimeout(() => {
+        const newOpts = { ...opts, skipCache: true };
+        getDoc(dbName, docid, newOpts);
+      }, 0);
+    }
+    console.log("Returning cached doc", cacheKey);
+    return docCache[cacheKey];
+  }
+
+  const response = await fetch(cacheKey, {
     method: "GET",
     headers: headersList,
   }).catch((error) => {
     error;
   });
 
-  return await dataOrThrow(response, customErr);
+  const results = await dataOrThrow(
+    response,
+    opts.customErrMessage || "Could not get doc",
+    opts.customErrStatusCode || 500
+  );
+
+  opts.cacheResponseTime = opts.cacheResponseTime || 0;
+  if (opts.cacheResponseTime > 0) {
+    docCache[cacheKey] = results;
+
+    const cacheTimer = setTimeout(() => {
+      console.log("Clearing cache", cacheKey);
+      delete docCache[cacheKey];
+      delete docCacheTimers[cacheKey];
+    }, opts.cacheResponseTime + 15 * 1000);
+
+    docCacheTimers[cacheKey] = {
+      cacheTimer,
+      expires: Date.now() + opts.cacheResponseTime,
+    };
+  }
+  return results;
 }
 
 export async function updatePerms(dbName: string) {
@@ -241,7 +288,9 @@ YQIDAQAB
   await upsert(newDbId, `${newDbId}_info`, appDbInfo);
   console.log(newDbId, "Database info doc created");
 
-  const accountDoc = await getDoc(accountName, `${accountName}_info`);
+  const accountDoc = await getDoc(accountName, `${accountName}_info`, {
+    skipCache: true,
+  });
   accountDoc.databases = accountDoc.databases || {};
   accountDoc.databases[newDbId] = appDbInfo;
   await upsert(accountName, `${accountName}_info`, accountDoc);
@@ -254,9 +303,9 @@ YQIDAQAB
   return { ok: true, newDbId };
 }
 
-export async function createInviteCode(email: string) {
+export async function createInviteCode(userId: string) {
   const inviteCode = "invite_" + generateID();
-  await upsert(dbName, inviteCode, { email });
+  await upsert(dbName, inviteCode, { userId });
   return { ok: true, inviteCode };
 }
 
@@ -264,14 +313,17 @@ export async function createNewAccountFromInvite(
   inviteCode: string,
   session: SessionPayload | undefined
 ) {
-  const inviteDoc = await getDoc(dbName, inviteCode, "Invalid invite code");
+  const inviteDoc = await getDoc(dbName, inviteCode, {
+    customErrMessage: "Invalid invite code",
+  });
 
-  const { email } = inviteDoc;
+  const { userId } = inviteDoc;
   // verify email matches session email
-  if (email !== session?.email)
+  if (userId !== session?.sub)
     return { ok: false, error: "Invalid invite code" };
 
   const { newAcctId } = await createNewAccount(session);
+  await upsert(dbName, inviteCode, { _deleted: true });
   // await createNewUser(newAcctId, email, generateID());
 
   return { ok: true, newAcctId };

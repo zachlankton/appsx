@@ -6,8 +6,10 @@ import {
   createInviteCode,
   createNewAccountFromInvite,
   createNewAppDatabase,
+  getDoc,
 } from "../lib/couchAdmin.js";
 import { getUser } from "../lib/clerkAdmin.js";
+import { throwHttpError } from "../lib/utils.js";
 const publicKey = `-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2pMML5vmkJ1I0jxULKFv
 n8jslbq+vXrVoPBD58m/VntJxeJwbDN4530SK0q1PqMybLlmEaQWClbtxkAQsCqc
@@ -32,14 +34,22 @@ interface SessionPayload {
   meta: any;
 }
 
+async function getDbInfo(dbName: string) {
+  return await getDoc(dbName, `${dbName}_info`, {
+    customErrMessage: "Database Document is missing",
+    cacheResponseTime: 60 * 1000,
+  });
+}
+
 async function verifyJwt(request: FastifyRequest, reply: FastifyReply) {
   const token = request.headers?.authorization?.slice(7) || "";
   if (!token) {
     reply.status(401).send({ error: "No token provided" });
     throw new Error("No token provided");
   }
+
   try {
-    const jwtToken = jwt.decode<{}, { alg: string }>(token);
+    const jwtToken = jwt.decode<{}, { alg: string; kid: string }>(token);
 
     if (!jwtToken) throw new Error("Invalid token");
     if (!jwtToken.header) throw new Error("Invalid token - requires header");
@@ -56,27 +66,106 @@ async function verifyJwt(request: FastifyRequest, reply: FastifyReply) {
       throw new Error("Invalid token - requires iss claim");
     if (!jwtToken.payload.jti)
       throw new Error("Invalid token - requires jti claim");
-    if (!jwtToken.payload.email)
-      throw new Error("Invalid token - requires email claim");
-    // if (!jwtToken.payload.firstName)
-    //   throw new Error("Invalid token - requires firstName claim");
-    // if (!jwtToken.payload.lastName)
-    //   throw new Error("Invalid token - requires lastName claim");
+    // if (!jwtToken.payload.email)
+    //   throw new Error("Invalid token - requires email claim");
     if (!jwtToken.payload.meta)
       throw new Error("Invalid token - requires meta claim");
-    if (!jwtToken.payload.image)
-      throw new Error("Invalid token - requires image claim");
-    // if (!jwtToken.payload.hasImage)
-    //   throw new Error("Invalid token - requires hasImage claim");
 
+    const { database } = request.params as { database: string };
     const algorithm = jwtToken.header.alg;
-    await jwt.verify(token, publicKey, { algorithm, throwError: true });
+    let _publicKey = publicKey;
+    if (database) {
+      const kid = jwtToken.header.kid;
+      const dbInfo = await getDbInfo(database);
+      if (dbInfo.trusted_jwt_public_keys[kid]) {
+        _publicKey = dbInfo.trusted_jwt_public_keys[kid];
+      }
+    }
+
+    await jwt.verify(token, _publicKey, { algorithm, throwError: true });
     request.session = jwtToken.payload as SessionPayload;
   } catch (e: any) {
-    console.log(e);
-    reply.status(401).send({ error: e.message });
-    throw new Error(e.message);
+    if (e.message === "EXPIRED") {
+      throwHttpError(401, "JWT Token has expired");
+    }
+    throwHttpError(401, e.message);
   }
+}
+
+async function verifyPublicCollectionPermissions(request: FastifyRequest) {
+  const method = request.method;
+  const { database, collection } = request.params as {
+    database: string;
+    collection: string;
+  };
+  if (!database || !collection) {
+    throwHttpError(
+      400,
+      "Error verifying collection permissions: database or collection is not set"
+    );
+  }
+
+  const publicCollections: any = await getDoc(database, "public_collections", {
+    customErrMessage: "Public Collections Document is missing",
+    cacheResponseTime: 60 * 1000,
+  });
+
+  const collectionPermissions = publicCollections[collection] || {};
+  if (collectionPermissions[method] === true) {
+    return true;
+  }
+
+  throwHttpError(
+    403,
+    `The operation on this collection is not listed as public`
+  );
+}
+
+async function verifyCollectionPermissions(request: FastifyRequest) {
+  const method = request.method;
+  const { database, collection } = request.params as {
+    database: string;
+    collection: string;
+  };
+  if (!database || !collection) {
+    throwHttpError(
+      400,
+      "Error verifying collection permissions: database or collection is not set"
+    );
+  }
+  const databaseObj = request.session?.meta?.databases?.[database];
+
+  if (!databaseObj) {
+    throwHttpError(403, "You do not have permission to access this database.");
+  }
+
+  const dbInfo: any = await getDbInfo(database);
+
+  const owners = dbInfo.owners || {};
+  const owner = owners[request.session!.sub];
+  if (owner && owner.email) {
+    console.log(
+      `Granting access to ${database} because ${owner.email} is owner`
+    );
+    return true;
+  }
+
+  const userPerms: any = await getDoc(database, request.session!.sub, {
+    customErrStatusCode: 403,
+    customErrMessage: "User Document is missing",
+    cacheResponseTime: 60 * 1000,
+  });
+
+  const collections = userPerms.collections || {};
+  const collectionPermissions = collections[collection] || {};
+  if (collectionPermissions[method] === true) {
+    return true;
+  }
+
+  throwHttpError(
+    403,
+    `You do not have permission to ${method} this collection`
+  );
 }
 
 async function textOrError(resp: Response) {
@@ -142,9 +231,9 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
       body: {
         type: "object",
         properties: {
-          email: { type: "string", format: "email" },
+          userId: { type: "string", maxLength: 40, minLength: 25 },
         },
-        required: ["email"],
+        required: ["userId"],
       },
     },
     handler: async function (request, reply) {
@@ -155,8 +244,8 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
           error: "You do not have permission to invite users",
         });
       }
-      const { email } = request.body as { email: string };
-      const inviteCode = await createInviteCode(email);
+      const { userId } = request.body as { userId: string };
+      const inviteCode = await createInviteCode(userId);
       reply.send({ inviteCode });
     },
   });
@@ -257,6 +346,236 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     },
   });
 
+  fastify.get("/:database/:collection", {
+    schema: {
+      params: {
+        type: "object",
+        required: ["database", "collection"],
+        properties: {
+          database: {
+            type: "string",
+            minLength: 24,
+            maxLength: 24,
+            pattern: "^db[a-zA-Z0-9]{22}$",
+          },
+          collection: {
+            type: "string",
+            minLength: 1,
+            maxLength: 24,
+            pattern: "^[a-zA-Z0-9_]{1,24}$",
+          },
+          query: {
+            type: "object",
+            properties: {
+              limit: { type: "number", minimum: 1, maximum: 100 },
+              skip: { type: "number", minimum: 0 },
+              sort: {
+                type: "object",
+                patternProperties: {
+                  "^[a-zA-Z0-9]{1,24}$": { enum: ["asc", "desc"] },
+                },
+              },
+              filter: {
+                type: "object",
+                patternProperties: {
+                  "^[a-zA-Z0-9]{1,24}$": { type: "string" },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    handler: async function (request, reply) {
+      setCors(reply);
+      const { database, collection } = request.params as {
+        database: string;
+        collection: string;
+      };
+
+      const publicRequest = collection.startsWith("public_");
+      if (publicRequest) {
+        await verifyPublicCollectionPermissions(request);
+      } else {
+        await verifyJwt(request, reply);
+        await verifyCollectionPermissions(request);
+      }
+
+      reply.send({ database, collection });
+    },
+  });
+
+  fastify.get("/:database/:collection/:docid", async function (request, reply) {
+    setCors(reply);
+    const { database, collection, docid } = request.params as {
+      database: string;
+      collection: string;
+      docid: string;
+    };
+
+    const publicRequest = collection.startsWith("public_");
+    if (publicRequest) {
+      await verifyPublicCollectionPermissions(request);
+    } else {
+      await verifyJwt(request, reply);
+      await verifyCollectionPermissions(request);
+    }
+
+    reply.send({ database, collection, docid });
+  });
+
+  fastify.get(
+    "/:database/:collection/:id/:filename",
+    async function (request, reply) {
+      setCors(reply);
+      const { database, collection, id, filename } = request.params as {
+        database: string;
+        collection: string;
+        id: string;
+        filename: string;
+      };
+
+      const publicRequest = collection.startsWith("public_");
+      if (publicRequest) {
+        await verifyPublicCollectionPermissions(request);
+      } else {
+        await verifyJwt(request, reply);
+        await verifyCollectionPermissions(request);
+      }
+
+      reply.send({ database, collection, id, filename });
+    }
+  );
+
+  fastify.post("/:database/:collection", async function (request, reply) {
+    setCors(reply);
+    await verifyJwt(request, reply);
+    const { database, collection } = request.params as {
+      database: string;
+      collection: string;
+    };
+    const { body } = request;
+    reply.send({ database, collection, body });
+  });
+
+  fastify.put("/:database/:collection/:docid", async function (request, reply) {
+    setCors(reply);
+    await verifyJwt(request, reply);
+    const { database, collection, docid } = request.params as {
+      database: string;
+      collection: string;
+      docid: string;
+    };
+    const { body } = request;
+    reply.send({ database, collection, docid, body });
+  });
+
+  fastify.delete(
+    "/:database/:collection/:docid",
+    async function (request, reply) {
+      setCors(reply);
+      await verifyJwt(request, reply);
+      const { database, collection, docid } = request.params as {
+        database: string;
+        collection: string;
+        docid: string;
+      };
+      reply.send({ database, collection, docid });
+    }
+  );
+
+  fastify.put(
+    "/:database/:collection/:id/:filename",
+    async function (request, reply) {
+      setCors(reply);
+      await verifyJwt(request, reply);
+      const { database, collection, id, filename } = request.params as {
+        database: string;
+        collection: string;
+        id: string;
+        filename: string;
+      };
+      const { body } = request;
+      reply.send({ database, collection, id, filename, body });
+    }
+  );
+
+  fastify.delete(
+    "/:database/:collection/:id/:filename",
+    async function (request, reply) {
+      setCors(reply);
+      await verifyJwt(request, reply);
+      const { database, collection, id, filename } = request.params as {
+        database: string;
+        collection: string;
+        id: string;
+        filename: string;
+      };
+      reply.send({ database, collection, id, filename });
+    }
+  );
+
+  fastify.get("/:database/api/:endpoint", async function (request, reply) {
+    setCors(reply);
+    await verifyJwt(request, reply);
+    const { database, endpoint } = request.params as {
+      database: string;
+      endpoint: string;
+    };
+    reply.send({ database, endpoint });
+  });
+
+  fastify.post("/:database/api/:endpoint", async function (request, reply) {
+    setCors(reply);
+    await verifyJwt(request, reply);
+    const { database, endpoint } = request.params as {
+      database: string;
+      endpoint: string;
+    };
+    const { body } = request;
+    reply.send({ database, endpoint, body });
+  });
+
+  fastify.get(
+    "/:database/api-admin/:endpoint",
+    async function (request, reply) {
+      setCors(reply);
+      await verifyJwt(request, reply);
+      const { database, endpoint } = request.params as {
+        database: string;
+        endpoint: string;
+      };
+      reply.send({ database, endpoint });
+    }
+  );
+
+  fastify.put(
+    "/:database/api-admin/:endpoint",
+    async function (request, reply) {
+      setCors(reply);
+      await verifyJwt(request, reply);
+      const { database, endpoint } = request.params as {
+        database: string;
+        endpoint: string;
+      };
+      const { body } = request;
+      reply.send({ database, endpoint, body });
+    }
+  );
+
+  fastify.delete(
+    "/:database/api-admin/:endpoint",
+    async function (request, reply) {
+      setCors(reply);
+      await verifyJwt(request, reply);
+      const { database, endpoint } = request.params as {
+        database: string;
+        endpoint: string;
+      };
+      reply.send({ database, endpoint });
+    }
+  );
+
   interface CreateDbUserParams {
     account_name: string;
   }
@@ -267,7 +586,7 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     extraData: any;
   }
 
-  fastify.post("/user/:account_name", async function (request, reply) {
+  fastify.post("/:account_name/user", async function (request, reply) {
     setCors(reply);
     await verifyJwt(request, reply);
     const { account_name } = request.params as CreateDbUserParams;

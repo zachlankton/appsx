@@ -80,26 +80,43 @@ export async function dataOrError(resp: Response) {
   }
 }
 
-function logAndThrow(error: any, errorMsg: any) {
+function logAndThrow(error: any, errorMsg: any, customErrorStatusCode = 500) {
   console.log(error);
   console.trace();
-  throw `{"error": "${errorMsg}"}`;
+  throwHttpError(customErrorStatusCode, errorMsg);
 }
 
-async function logAndThrowWithData(error: any, errorMsg: any) {
+async function logAndThrowWithData(
+  error: any,
+  errorMsg: any,
+  customErrorStatusCode = 500
+) {
   let data = await dataOrError(error);
   console.log(error, data);
   console.trace();
-  throw `{"error": "${errorMsg}"}`;
+  throwHttpError(customErrorStatusCode, errorMsg);
 }
 
-export async function dataOrThrow(response: any, errorMsg: string) {
-  if (!response) logAndThrow(response, errorMsg);
-  if (!response.ok) await logAndThrowWithData(response, errorMsg);
-  if (response.error) logAndThrow(response, errorMsg);
+export function throwHttpError(code: number, message: string) {
+  const error = new Error() as any;
+  error.message = message;
+  error.statusCode = code;
+  throw error;
+}
+
+export async function dataOrThrow(
+  response: any,
+  errorMsg: string,
+  customErrorStatusCode = 500
+) {
+  if (!response) logAndThrow(response, errorMsg, customErrorStatusCode);
+  if (!response.ok)
+    await logAndThrowWithData(response, errorMsg, customErrorStatusCode);
+  if (response.error) logAndThrow(response, errorMsg, customErrorStatusCode);
 
   let data = await dataOrError(response);
 
-  if (!data || data.error) logAndThrow(response, errorMsg);
+  if (!data || data.error)
+    logAndThrow(response, errorMsg, customErrorStatusCode);
   return data;
 }

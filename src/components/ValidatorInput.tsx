@@ -36,7 +36,7 @@ export function Input(props: InputProps) {
       <div
         ref={errorRef}
         style="height: 0px;"
-        class=" overflow-hidden transition-all text-red-600 text-xs"
+        class=" overflow-hidden text-xs text-red-600 transition-all"
       ></div>
     </>
   );

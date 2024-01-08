@@ -108,11 +108,11 @@ export function Page() {
           {/* <!-- Background backdrop, show/hide based on slide-over state. --> */}
           <div
             ref={sidebarBackdropRef}
-            class="fixed inset-0 z-50 bg-gray-900/80 transition-opacity ease-linear duration-300 opacity-0"
+            class="fixed inset-0 z-50 bg-gray-900/80 opacity-0 transition-opacity duration-300 ease-linear"
           ></div>
           <div
             ref={mobileSideBarRef}
-            class="transition ease-in-out duration-300 translate-x-full fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-gray-900 px-6 py-6 sm:max-w-sm sm:ring-1 sm:ring-white/10"
+            class="fixed inset-y-0 right-0 z-50 w-full translate-x-full overflow-y-auto bg-gray-900 px-6 py-6 transition duration-300 ease-in-out sm:max-w-sm sm:ring-1 sm:ring-white/10"
           >
             <div class="flex items-center justify-between">
               <a href="#" class="-m-1.5 p-1.5 text-white">
@@ -182,7 +182,7 @@ export function Page() {
       </header>
       <div class="relative isolate pt-14">
         <div
-          class="bg-white shadow sm:rounded-lg sm:w-[600px] m-auto sm:mt-10 "
+          class="m-auto bg-white shadow sm:mt-10 sm:w-[600px] sm:rounded-lg "
           onMount={() =>
             (document.head.parentElement!.className = "h-full bg-gray-900")
           }
