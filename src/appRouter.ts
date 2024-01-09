@@ -26,6 +26,12 @@ const routes = [
     component: () => import("src/Pages/NewAccount"),
     title: "AppsX",
   },
+
+  {
+    path: "/invite",
+    component: () => import("src/Pages/Invite"),
+    title: "AppsX Invite",
+  },
 ];
 
 router.addRoutesFromConfig(routes);

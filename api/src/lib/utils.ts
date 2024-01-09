@@ -89,7 +89,7 @@ function logAndThrow(error: any, errorMsg: any, customErrorStatusCode = 500) {
 async function logAndThrowWithData(
   error: any,
   errorMsg: any,
-  customErrorStatusCode = 500
+  customErrorStatusCode = 500,
 ) {
   let data = await dataOrError(error);
   console.log(error, data);
@@ -107,7 +107,7 @@ export function throwHttpError(code: number, message: string) {
 export async function dataOrThrow(
   response: any,
   errorMsg: string,
-  customErrorStatusCode = 500
+  customErrorStatusCode = 500,
 ) {
   if (!response) logAndThrow(response, errorMsg, customErrorStatusCode);
   if (!response.ok)
@@ -116,7 +116,7 @@ export async function dataOrThrow(
 
   let data = await dataOrError(response);
 
-  if (!data || data.error)
+  if (data && data.error)
     logAndThrow(response, errorMsg, customErrorStatusCode);
   return data;
 }

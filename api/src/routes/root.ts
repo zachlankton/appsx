@@ -6,6 +6,7 @@ import {
   createInviteCode,
   createNewAccountFromInvite,
   createNewAppDatabase,
+  generateJWT,
   getDoc,
 } from "../lib/couchAdmin.js";
 import { getUser } from "../lib/clerkAdmin.js";
@@ -66,8 +67,8 @@ async function verifyJwt(request: FastifyRequest, reply: FastifyReply) {
       throw new Error("Invalid token - requires iss claim");
     if (!jwtToken.payload.jti)
       throw new Error("Invalid token - requires jti claim");
-    // if (!jwtToken.payload.email)
-    //   throw new Error("Invalid token - requires email claim");
+    if (!jwtToken.payload.email && !jwtToken.payload.username)
+      throw new Error("Invalid token - requires email or username claim");
     if (!jwtToken.payload.meta)
       throw new Error("Invalid token - requires meta claim");
 
@@ -101,7 +102,7 @@ async function verifyPublicCollectionPermissions(request: FastifyRequest) {
   if (!database || !collection) {
     throwHttpError(
       400,
-      "Error verifying collection permissions: database or collection is not set"
+      "Error verifying collection permissions: database or collection is not set",
     );
   }
 
@@ -117,7 +118,7 @@ async function verifyPublicCollectionPermissions(request: FastifyRequest) {
 
   throwHttpError(
     403,
-    `The operation on this collection is not listed as public`
+    `The operation on this collection is not listed as public`,
   );
 }
 
@@ -130,7 +131,7 @@ async function verifyCollectionPermissions(request: FastifyRequest) {
   if (!database || !collection) {
     throwHttpError(
       400,
-      "Error verifying collection permissions: database or collection is not set"
+      "Error verifying collection permissions: database or collection is not set",
     );
   }
   const databaseObj = request.session?.meta?.databases?.[database];
@@ -145,7 +146,7 @@ async function verifyCollectionPermissions(request: FastifyRequest) {
   const owner = owners[request.session!.sub];
   if (owner && owner.email) {
     console.log(
-      `Granting access to ${database} because ${owner.email} is owner`
+      `Granting access to ${database} because ${owner.email} is owner`,
     );
     return true;
   }
@@ -164,7 +165,7 @@ async function verifyCollectionPermissions(request: FastifyRequest) {
 
   throwHttpError(
     403,
-    `You do not have permission to ${method} this collection`
+    `You do not have permission to ${method} this collection`,
   );
 }
 
@@ -222,21 +223,15 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
   fastify.get("/test-jwt", async function (request, reply) {
     setCors(reply);
     await verifyJwt(request, reply);
+    const jwtToken = await generateJWT(request.session as SessionPayload);
     console.log(request.session);
-    reply.send({ ok: true });
+    reply.send({ ok: true, jwtToken });
   });
 
   fastify.post("/invite", {
-    schema: {
-      body: {
-        type: "object",
-        properties: {
-          userId: { type: "string", maxLength: 40, minLength: 25 },
-        },
-        required: ["userId"],
-      },
-    },
+    schema: {},
     handler: async function (request, reply) {
+      setCors(reply);
       await verifyJwt(request, reply);
       const user = await getUser(request.session!.sub);
       if (user.public_metadata.appsx_admin !== true) {
@@ -244,9 +239,11 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
           error: "You do not have permission to invite users",
         });
       }
-      const { userId } = request.body as { userId: string };
-      const inviteCode = await createInviteCode(userId);
-      reply.send({ inviteCode });
+
+      const inviteCode = await createInviteCode(
+        request.session as SessionPayload,
+      );
+      reply.send({ ...inviteCode });
     },
   });
 
@@ -282,7 +279,7 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
       const { invite_code } = request.params as { invite_code: string };
       const response = await createNewAccountFromInvite(
         invite_code,
-        request.session
+        request.session as SessionPayload,
       );
       reply.send(response);
     },
@@ -305,9 +302,9 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
         properties: {
           account_name: {
             type: "string",
-            minLength: 20,
-            maxLength: 20,
-            pattern: "^acct[a-zA-Z0-9]{16}$",
+            minLength: 26,
+            maxLength: 26,
+            pattern: "^acct[a-zA-Z0-9]{22}$",
           },
           db_name: {
             type: "string",
@@ -339,7 +336,7 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
       const response = await createNewAppDatabase(
         account_name,
         db_name,
-        request.session
+        request.session as SessionPayload,
       );
 
       reply.send(response);
@@ -360,9 +357,9 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
           },
           collection: {
             type: "string",
-            minLength: 1,
-            maxLength: 24,
-            pattern: "^[a-zA-Z0-9_]{1,24}$",
+            minLength: 2,
+            maxLength: 25,
+            pattern: "^[a-zA-z]{1}[a-zA-Z0-9_]{1,24}$",
           },
           query: {
             type: "object",
@@ -444,7 +441,7 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
       }
 
       reply.send({ database, collection, id, filename });
-    }
+    },
   );
 
   fastify.post("/:database/:collection", async function (request, reply) {
@@ -481,7 +478,7 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
         docid: string;
       };
       reply.send({ database, collection, docid });
-    }
+    },
   );
 
   fastify.put(
@@ -497,7 +494,7 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
       };
       const { body } = request;
       reply.send({ database, collection, id, filename, body });
-    }
+    },
   );
 
   fastify.delete(
@@ -512,7 +509,7 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
         filename: string;
       };
       reply.send({ database, collection, id, filename });
-    }
+    },
   );
 
   fastify.get("/:database/api/:endpoint", async function (request, reply) {
@@ -546,7 +543,7 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
         endpoint: string;
       };
       reply.send({ database, endpoint });
-    }
+    },
   );
 
   fastify.put(
@@ -560,7 +557,7 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
       };
       const { body } = request;
       reply.send({ database, endpoint, body });
-    }
+    },
   );
 
   fastify.delete(
@@ -573,7 +570,7 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
         endpoint: string;
       };
       reply.send({ database, endpoint });
-    }
+    },
   );
 
   interface CreateDbUserParams {

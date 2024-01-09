@@ -6,12 +6,15 @@ interface InputProps extends Omit<ValidatorOptions, "inputElm"> {
   label: string;
   placeholder?: string;
   type?: string;
+  value?: any;
+  readonly?: boolean;
 }
 
 export function Input(props: InputProps) {
   const inputRef: any = { elm: null };
   const errorRef: any = { elm: null };
   const setupValidator = () => {
+    inputRef.elm.readOnly = props.readonly || false;
     setupValidatorInput({
       inputElm: inputRef.elm,
       errorElm: errorRef.elm,
@@ -25,6 +28,7 @@ export function Input(props: InputProps) {
         {props.label}
       </label>
       <input
+        value={props.value || ""}
         onMount={setupValidator}
         ref={inputRef}
         name={props.name}

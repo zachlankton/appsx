@@ -46,7 +46,7 @@ async function dataOrThrow(response, errorMsg) {
 
   let data = await dataOrError(response);
 
-  if (!data || data.error) logAndThrow(response, errorMsg);
+  if (data && data.error) logAndThrow(response, errorMsg);
   return data;
 }
 
@@ -96,7 +96,7 @@ async function upsert(dbName, docid, doc) {
       method: "PUT",
       body: JSON.stringify(doc),
       headers: headersList,
-    }
+    },
   ).catch((error) => {
     error;
   });
@@ -123,6 +123,52 @@ async function updatePerms(dbName) {
   });
 
   return await dataOrThrow(response, "Could not update permissions");
+}
+
+async function setJwtAuthConfig() {
+  let bodyContent =
+    '"{chttpd_auth, cookie_authentication_handler}, {chttpd_auth, jwt_authentication_handler}, {chttpd_auth, default_authentication_handler}"';
+
+  let response = await fetch(
+    `${dbUrl}/_node/couchdb@TestClouseau/_config/chttpd/authentication_handlers`,
+    {
+      method: "PUT",
+      body: bodyContent,
+      headers: headersList,
+    },
+  );
+
+  return await dataOrThrow(response, "Could not set JWT Config");
+}
+
+async function setJwtKeys() {
+  let bodyContent = '"aGVsbG8="';
+
+  let response = await fetch(
+    `${dbUrl}/_node/couchdb@TestClouseau/_config/jwt_keys/hmac:_default`,
+    {
+      method: "PUT",
+      body: bodyContent,
+      headers: headersList,
+    },
+  );
+
+  return await dataOrThrow(response, "Could not set JWT Keys");
+}
+
+async function setReqdClaims() {
+  let bodyContent = '"exp, {iss, \\"AppsX\\"}"';
+
+  let response = await fetch(
+    `${dbUrl}/_node/couchdb@TestClouseau/_config/jwt_auth/required_claims`,
+    {
+      method: "PUT",
+      body: bodyContent,
+      headers: headersList,
+    },
+  );
+
+  return await dataOrThrow(response, "Could not set JWT Required Claims");
 }
 
 const updateDoc = {
@@ -156,8 +202,14 @@ YQIDAQAB
 };
 
 async function seed() {
-  await deleteDatabase("appsx_dev");
-  console.log("Database deleted");
+  await createDatabase("_users");
+  console.log("Users database created");
+
+  await createDatabase("_replicator");
+  console.log("Replicator database created");
+
+  await createDatabase("_global_changes");
+  console.log("Global Changes database created");
 
   await createDatabase("appsx_dev");
   console.log("Database created");
@@ -170,6 +222,15 @@ async function seed() {
 
   await updatePerms("appsx_dev");
   console.log("Database permissions updated");
+
+  await setJwtAuthConfig();
+  console.log("JWT Auth Config Set");
+
+  await setJwtKeys();
+  console.log("JWT Keys Set");
+
+  await setReqdClaims();
+  console.log("JWT Required Claims Set");
 }
 
 seed();

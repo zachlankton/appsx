@@ -15,26 +15,19 @@ let headersList = {
 
 const privateKey = process.env.PRIVATE_JWT_KEY;
 
-type DbOwner = {
-  firstName: string;
-  lastName: string;
-  email: string;
-  id: string;
-};
-
 export async function generateJWT(
-  { firstName, lastName, email, id }: DbOwner,
-  roles: string[] = []
+  { firstName, lastName, email, username, sub }: SessionPayload,
+  roles: string[] = [],
 ) {
   const payload = {
     exp: Math.floor(Date.now() / 1000) + 60,
     iat: Math.floor(Date.now() / 1000),
-    sub: email,
+    sub: email || username || sub,
     iss: "AppsX",
     email,
     firstName,
     lastName,
-    userId: id,
+    userId: sub,
     "_couchdb.roles": roles,
   };
   const token = await jwt.sign(payload, privateKey, { algorithm: "HS256" });
@@ -44,6 +37,10 @@ export async function generateJWT(
 function createBasicAuthHeader(username: string, password: string) {
   const base64Credentials = btoa(username + ":" + password);
   return "Basic " + base64Credentials;
+}
+
+function createBearerAuthHeader(token: string) {
+  return "Bearer " + token;
 }
 
 export async function deleteDatabase(dbName: string) {
@@ -72,11 +69,18 @@ export async function createDatabase(dbName: string) {
 export async function createDesignDoc(
   dbName: string,
   docName: string,
-  doc: any
+  doc: any,
+  session: SessionPayload,
 ) {
+  const headers = {
+    Authorization: createBearerAuthHeader(
+      await generateJWT(session, [`${dbName}_admin`]),
+    ),
+  };
+
   const response = await fetch(`${dbUrl}/${dbName}/_design/${docName}`, {
     method: "PUT",
-    headers: headersList,
+    headers,
     body: JSON.stringify(doc),
   }).catch((error) => {
     error;
@@ -85,14 +89,25 @@ export async function createDesignDoc(
   return await dataOrThrow(response, "Could not create design doc");
 }
 
-export async function upsert(dbName: string, docid: string, doc: any) {
+export async function upsert(
+  dbName: string,
+  docid: string,
+  doc: any,
+  session: SessionPayload,
+) {
+  const headers = {
+    Authorization: createBearerAuthHeader(
+      await generateJWT(session, [`${dbName}_admin`]),
+    ),
+  };
+
   const response = await fetch(
     `${dbUrl}/${dbName}/_design/update_doc/_update/updatefun1/${docid}`,
     {
       method: "PUT",
       body: JSON.stringify(doc),
-      headers: headersList,
-    }
+      headers,
+    },
   ).catch((error) => {
     error;
   });
@@ -111,7 +126,7 @@ export async function getDoc(
     customErrStatusCode?: number;
     cacheResponseTime?: number;
     skipCache?: boolean;
-  } = {}
+  } = {},
 ) {
   opts.skipCache = opts.skipCache || false;
 
@@ -141,18 +156,21 @@ export async function getDoc(
   const results = await dataOrThrow(
     response,
     opts.customErrMessage || "Could not get doc",
-    opts.customErrStatusCode || 500
+    opts.customErrStatusCode || 500,
   );
 
   opts.cacheResponseTime = opts.cacheResponseTime || 0;
   if (opts.cacheResponseTime > 0) {
     docCache[cacheKey] = results;
 
-    const cacheTimer = setTimeout(() => {
-      console.log("Clearing cache", cacheKey);
-      delete docCache[cacheKey];
-      delete docCacheTimers[cacheKey];
-    }, opts.cacheResponseTime + 15 * 1000);
+    const cacheTimer = setTimeout(
+      () => {
+        console.log("Clearing cache", cacheKey);
+        delete docCache[cacheKey];
+        delete docCacheTimers[cacheKey];
+      },
+      opts.cacheResponseTime + 15 * 1000,
+    );
 
     docCacheTimers[cacheKey] = {
       cacheTimer,
@@ -184,26 +202,34 @@ export async function updatePerms(dbName: string) {
 }
 
 export async function createNewAccount(
-  session: SessionPayload | undefined,
-  displayName = "default"
+  session: SessionPayload,
+  displayName = "default",
 ) {
   const newAcctId = "acct" + generateID().toLowerCase();
 
   await createDatabase(newAcctId);
   console.log("New Account Database Created", newAcctId);
 
-  await createDesignDoc(newAcctId, "update_doc", updateDoc);
+  await updatePerms(newAcctId);
+  console.log(newAcctId, "Database permissions updated");
+
+  await createDesignDoc(newAcctId, "update_doc", updateDoc, session);
   console.log(newAcctId, "Update Design doc created");
 
-  await upsert(newAcctId, `${newAcctId}_info`, {
-    displayName,
-    owner: {
-      firstName: session?.firstName,
-      lastName: session?.lastName,
-      email: session?.email,
-      id: session?.sub,
+  await upsert(
+    newAcctId,
+    `${newAcctId}_info`,
+    {
+      displayName,
+      owner: {
+        firstName: session?.firstName,
+        lastName: session?.lastName,
+        email: session?.email,
+        id: session?.sub,
+      },
     },
-  });
+    session,
+  );
 
   console.log(newAcctId, "New Account Database info doc created");
   session!.meta.accounts = session!.meta.accounts || {};
@@ -217,16 +243,22 @@ export async function createNewUser(
   accountId: string,
   username: string,
   password: string,
-  extraData: any = {}
+  extraData: any = {},
+  session: SessionPayload,
 ) {
   const newUserId = "user_" + generateID();
   const hashedPassword = await argon2.hash(password);
 
-  await upsert(accountId, newUserId, {
-    username,
-    hashedPassword,
-    ...extraData,
-  });
+  await upsert(
+    accountId,
+    newUserId,
+    {
+      username,
+      hashedPassword,
+      ...extraData,
+    },
+    session,
+  );
 
   console.log(newUserId, "New User Database info doc created");
 
@@ -244,7 +276,7 @@ const updateDoc = {
 export async function createNewAppDatabase(
   accountName: string,
   dbName: string,
-  session: SessionPayload | undefined
+  session: SessionPayload,
 ) {
   const newDbId = "db" + generateID().toLowerCase();
   const owner = {
@@ -252,6 +284,7 @@ export async function createNewAppDatabase(
     lastName: session!.lastName,
     email: session!.email,
     id: session!.sub,
+    username: session!.username,
   };
 
   const appDbInfo: any = {
@@ -274,6 +307,7 @@ YQIDAQAB
     firstName: owner.firstName,
     lastName: owner.lastName,
     email: owner.email,
+    username: owner.email,
   };
 
   await createDatabase(newDbId);
@@ -282,10 +316,10 @@ YQIDAQAB
   await updatePerms(newDbId);
   console.log(newDbId, "Database permissions updated");
 
-  await createDesignDoc(newDbId, "update_doc", updateDoc);
+  await createDesignDoc(newDbId, "update_doc", updateDoc, session);
   console.log(newDbId, "Update Design doc created");
 
-  await upsert(newDbId, `${newDbId}_info`, appDbInfo);
+  await upsert(newDbId, `${newDbId}_info`, appDbInfo, session);
   console.log(newDbId, "Database info doc created");
 
   const accountDoc = await getDoc(accountName, `${accountName}_info`, {
@@ -293,7 +327,7 @@ YQIDAQAB
   });
   accountDoc.databases = accountDoc.databases || {};
   accountDoc.databases[newDbId] = appDbInfo;
-  await upsert(accountName, `${accountName}_info`, accountDoc);
+  await upsert(accountName, `${accountName}_info`, accountDoc, session);
   console.log(accountName, "Account info doc updated");
 
   session!.meta.databases = session!.meta.databases || {};
@@ -303,28 +337,23 @@ YQIDAQAB
   return { ok: true, newDbId };
 }
 
-export async function createInviteCode(userId: string) {
+export async function createInviteCode(session: SessionPayload) {
   const inviteCode = "invite_" + generateID();
-  await upsert(dbName, inviteCode, { userId });
+  await upsert(dbName, inviteCode, {}, session);
   return { ok: true, inviteCode };
 }
 
 export async function createNewAccountFromInvite(
   inviteCode: string,
-  session: SessionPayload | undefined
+  session: SessionPayload,
 ) {
-  const inviteDoc = await getDoc(dbName, inviteCode, {
+  await getDoc(dbName, inviteCode, {
+    customErrStatusCode: 400,
     customErrMessage: "Invalid invite code",
   });
 
-  const { userId } = inviteDoc;
-  // verify email matches session email
-  if (userId !== session?.sub)
-    return { ok: false, error: "Invalid invite code" };
-
   const { newAcctId } = await createNewAccount(session);
-  await upsert(dbName, inviteCode, { _deleted: true });
-  // await createNewUser(newAcctId, email, generateID());
+  await upsert(dbName, inviteCode, { _deleted: true }, session);
 
   return { ok: true, newAcctId };
 }
