@@ -13,7 +13,7 @@ let headersList = {
   Authorization,
 };
 
-const privateKey = process.env.PRIVATE_JWT_KEY;
+const privateKey = atob(process.env.PRIVATE_JWT_KEY || "");
 
 export async function generateJWT(
   { firstName, lastName, email, username, sub }: SessionPayload,
