@@ -1,10 +1,11 @@
 import { Btn } from "src/components/Buttons";
 import { getFormData } from "@rezact/rezact/formHelper";
 import { Input } from "src/components/ValidatorInput";
-import { elmRef } from "src/Layout";
+
 import { signOut } from "src/lib/ClerkLite";
 import { createAccountWithInvite } from "src/lib/AppsxApi";
 import { router } from "src/appRouter";
+import { elmRef } from "src/lib/utils";
 
 export function Page() {
   const handleSubmit = async (ev) => {

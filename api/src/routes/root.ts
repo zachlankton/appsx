@@ -191,7 +191,51 @@ function setCors(reply: FastifyReply) {
   reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
+/*
+  ========================= BEGIN ROUTES =========================
+*/
+
 const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
+  fastify.addSchema({
+    $id: "#database",
+    type: "string",
+    minLength: 24,
+    maxLength: 24,
+    pattern: "^db[a-zA-Z0-9]{22}$",
+  });
+
+  fastify.addSchema({
+    $id: "#collection",
+    type: "string",
+    minLength: 2,
+    maxLength: 25,
+    pattern: "^[a-zA-z]{1}[a-zA-Z0-9_]{1,24}$",
+  });
+
+  fastify.addSchema({
+    $id: "#docid",
+    type: "string",
+    minLength: 2,
+    maxLength: 36,
+    pattern: "^[a-zA-z]{1}[a-zA-Z0-9_]{1,35}$",
+  });
+
+  fastify.addSchema({
+    $id: "#filename",
+    type: "string",
+    minLength: 2,
+    maxLength: 36,
+    pattern: "^[a-zA-Z0-9_]{1,36}$",
+  });
+
+  fastify.addSchema({
+    $id: "#account_name",
+    type: "string",
+    minLength: 26,
+    maxLength: 26,
+    pattern: "^acct[a-zA-Z0-9]{22}$",
+  });
+
   fastify.options("*", function (request, reply) {
     setCors(reply);
     reply.header("cache-control", "max-age=3600");
@@ -290,22 +334,23 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     db_name: string;
   }
 
-  function validateAccountName(account_name: string) {
-    const re = /^acct[a-zA-Z0-9]{16}$/;
-    return re.test(account_name);
-  }
+  fastify.get("/account", async function (request, reply) {
+    setCors(reply);
+    await verifyJwt(request, reply);
+    const user = request.session?.meta;
+    const account = Object.keys(user?.accounts || [])[0];
+    const acctInfo = await getDoc(account, `${account}_info`, {
+      customErrMessage: "Account Document is missing",
+    });
+    reply.send({ acctInfo });
+  });
 
   fastify.post("/create_database/:account_name/:db_name", {
     schema: {
       params: {
         type: "object",
         properties: {
-          account_name: {
-            type: "string",
-            minLength: 26,
-            maxLength: 26,
-            pattern: "^acct[a-zA-Z0-9]{22}$",
-          },
+          account_name: { $ref: "#account_name" },
           db_name: {
             type: "string",
             pattern: "^[a-zA-Z0-9]{1,24}$",
@@ -349,18 +394,8 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
         type: "object",
         required: ["database", "collection"],
         properties: {
-          database: {
-            type: "string",
-            minLength: 24,
-            maxLength: 24,
-            pattern: "^db[a-zA-Z0-9]{22}$",
-          },
-          collection: {
-            type: "string",
-            minLength: 2,
-            maxLength: 25,
-            pattern: "^[a-zA-z]{1}[a-zA-Z0-9_]{1,24}$",
-          },
+          database: { $ref: "#database" },
+          collection: { $ref: "#collection" },
           query: {
             type: "object",
             properties: {
@@ -402,28 +437,85 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     },
   });
 
-  fastify.get("/:database/:collection/:docid", async function (request, reply) {
-    setCors(reply);
-    const { database, collection, docid } = request.params as {
-      database: string;
-      collection: string;
-      docid: string;
-    };
+  fastify.post("/:database/:collection", {
+    schema: {
+      params: {
+        type: "object",
+        required: ["database", "collection"],
+        properties: {
+          database: { $ref: "#database" },
+          collection: { $ref: "#collection" },
+        },
+      },
+      body: {
+        type: "object",
+      },
+    },
+    handler: async function (request, reply) {
+      setCors(reply);
+      const { database, collection } = request.params as {
+        database: string;
+        collection: string;
+      };
 
-    const publicRequest = collection.startsWith("public_");
-    if (publicRequest) {
-      await verifyPublicCollectionPermissions(request);
-    } else {
-      await verifyJwt(request, reply);
-      await verifyCollectionPermissions(request);
-    }
+      const publicRequest = collection.startsWith("public_");
+      if (publicRequest) {
+        await verifyPublicCollectionPermissions(request);
+      } else {
+        await verifyJwt(request, reply);
+        await verifyCollectionPermissions(request);
+      }
 
-    reply.send({ database, collection, docid });
+      reply.send({ database, collection });
+    },
   });
 
-  fastify.get(
-    "/:database/:collection/:id/:filename",
-    async function (request, reply) {
+  fastify.get("/:database/:collection/:docid", {
+    schema: {
+      params: {
+        type: "object",
+        required: ["database", "collection", "docid"],
+        properties: {
+          database: { $ref: "#database" },
+          collection: { $ref: "#collection" },
+          docid: { $ref: "#docid" },
+        },
+      },
+    },
+    handler: async function (request, reply) {
+      setCors(reply);
+      const { database, collection, docid } = request.params as {
+        database: string;
+        collection: string;
+        docid: string;
+      };
+
+      const publicRequest = collection.startsWith("public_");
+      if (publicRequest) {
+        await verifyPublicCollectionPermissions(request);
+      } else {
+        await verifyJwt(request, reply);
+        await verifyCollectionPermissions(request);
+      }
+
+      reply.send({ database, collection, docid });
+    },
+  });
+
+  fastify.get("/:database/:collection/:id/:filename", {
+    schema: {
+      params: {
+        type: "object",
+        required: ["database", "collection", "id", "filename"],
+        properties: {
+          database: { $ref: "#database" },
+          collection: { $ref: "#collection" },
+          id: { $ref: "#docid" },
+          filename: { $ref: "#filename" },
+        },
+      },
+    },
+    handler: async function (request, reply) {
       setCors(reply);
       const { database, collection, id, filename } = request.params as {
         database: string;
@@ -442,34 +534,49 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
 
       reply.send({ database, collection, id, filename });
     },
-  );
-
-  fastify.post("/:database/:collection", async function (request, reply) {
-    setCors(reply);
-    await verifyJwt(request, reply);
-    const { database, collection } = request.params as {
-      database: string;
-      collection: string;
-    };
-    const { body } = request;
-    reply.send({ database, collection, body });
   });
 
-  fastify.put("/:database/:collection/:docid", async function (request, reply) {
-    setCors(reply);
-    await verifyJwt(request, reply);
-    const { database, collection, docid } = request.params as {
-      database: string;
-      collection: string;
-      docid: string;
-    };
-    const { body } = request;
-    reply.send({ database, collection, docid, body });
+  fastify.put("/:database/:collection/:docid", {
+    schema: {
+      params: {
+        type: "object",
+        required: ["database", "collection", "docid"],
+        properties: {
+          database: { $ref: "#database" },
+          collection: { $ref: "#collection" },
+          docid: { $ref: "#docid" },
+        },
+      },
+      body: {
+        type: "object",
+      },
+    },
+    handler: async function (request, reply) {
+      setCors(reply);
+      await verifyJwt(request, reply);
+      const { database, collection, docid } = request.params as {
+        database: string;
+        collection: string;
+        docid: string;
+      };
+      const { body } = request;
+      reply.send({ database, collection, docid, body });
+    },
   });
 
-  fastify.delete(
-    "/:database/:collection/:docid",
-    async function (request, reply) {
+  fastify.delete("/:database/:collection/:docid", {
+    schema: {
+      params: {
+        type: "object",
+        required: ["database", "collection", "docid"],
+        properties: {
+          database: { $ref: "#database" },
+          collection: { $ref: "#collection" },
+          docid: { $ref: "#docid" },
+        },
+      },
+    },
+    handler: async function (request, reply) {
       setCors(reply);
       await verifyJwt(request, reply);
       const { database, collection, docid } = request.params as {
@@ -479,11 +586,29 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
       };
       reply.send({ database, collection, docid });
     },
-  );
+  });
 
-  fastify.put(
-    "/:database/:collection/:id/:filename",
-    async function (request, reply) {
+  fastify.put("/:database/:collection/:id/:filename", {
+    schema: {
+      params: {
+        type: "object",
+        required: ["database", "collection", "id", "filename"],
+        properties: {
+          database: { $ref: "#database" },
+          collection: { $ref: "#collection" },
+          id: { $ref: "#docid" },
+          filename: { $ref: "#filename" },
+        },
+      },
+      headers: {
+        type: "object",
+        properties: {
+          "content-type": { const: "multipart/form-data" },
+        },
+      },
+      body: {},
+    },
+    handler: async function (request, reply) {
       setCors(reply);
       await verifyJwt(request, reply);
       const { database, collection, id, filename } = request.params as {
@@ -495,11 +620,22 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
       const { body } = request;
       reply.send({ database, collection, id, filename, body });
     },
-  );
+  });
 
-  fastify.delete(
-    "/:database/:collection/:id/:filename",
-    async function (request, reply) {
+  fastify.delete("/:database/:collection/:id/:filename", {
+    schema: {
+      params: {
+        type: "object",
+        required: ["database", "collection", "id", "filename"],
+        properties: {
+          database: { $ref: "#database" },
+          collection: { $ref: "#collection" },
+          id: { $ref: "#docid" },
+          filename: { $ref: "#filename" },
+        },
+      },
+    },
+    handler: async function (request, reply) {
       setCors(reply);
       await verifyJwt(request, reply);
       const { database, collection, id, filename } = request.params as {
@@ -510,68 +646,7 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
       };
       reply.send({ database, collection, id, filename });
     },
-  );
-
-  fastify.get("/:database/api/:endpoint", async function (request, reply) {
-    setCors(reply);
-    await verifyJwt(request, reply);
-    const { database, endpoint } = request.params as {
-      database: string;
-      endpoint: string;
-    };
-    reply.send({ database, endpoint });
   });
-
-  fastify.post("/:database/api/:endpoint", async function (request, reply) {
-    setCors(reply);
-    await verifyJwt(request, reply);
-    const { database, endpoint } = request.params as {
-      database: string;
-      endpoint: string;
-    };
-    const { body } = request;
-    reply.send({ database, endpoint, body });
-  });
-
-  fastify.get(
-    "/:database/api-admin/:endpoint",
-    async function (request, reply) {
-      setCors(reply);
-      await verifyJwt(request, reply);
-      const { database, endpoint } = request.params as {
-        database: string;
-        endpoint: string;
-      };
-      reply.send({ database, endpoint });
-    },
-  );
-
-  fastify.put(
-    "/:database/api-admin/:endpoint",
-    async function (request, reply) {
-      setCors(reply);
-      await verifyJwt(request, reply);
-      const { database, endpoint } = request.params as {
-        database: string;
-        endpoint: string;
-      };
-      const { body } = request;
-      reply.send({ database, endpoint, body });
-    },
-  );
-
-  fastify.delete(
-    "/:database/api-admin/:endpoint",
-    async function (request, reply) {
-      setCors(reply);
-      await verifyJwt(request, reply);
-      const { database, endpoint } = request.params as {
-        database: string;
-        endpoint: string;
-      };
-      reply.send({ database, endpoint });
-    },
-  );
 
   interface CreateDbUserParams {
     account_name: string;
@@ -583,19 +658,36 @@ const root: FastifyPluginAsync = async (fastify, opts): Promise<void> => {
     extraData: any;
   }
 
-  fastify.post("/:account_name/user", async function (request, reply) {
-    setCors(reply);
-    await verifyJwt(request, reply);
-    const { account_name } = request.params as CreateDbUserParams;
-    const { username, password, extraData } = request.body as CreateDbUserBody;
+  fastify.post("/:account_name/user", {
+    schema: {
+      params: {
+        type: "object",
+        properties: {
+          account_name: { $ref: "#account_name" },
+        },
+        required: ["account_name"],
+      },
+      body: {
+        type: "object",
+        properties: {
+          username: { type: "string", minLength: 1, maxLength: 24 },
+          password: { type: "string", minLength: 8, maxLength: 128 },
+          extraData: { type: "object" },
+        },
+        required: ["username", "password"],
+      },
+    },
+    handler: async function (request, reply) {
+      setCors(reply);
+      await verifyJwt(request, reply);
+      const { account_name } = request.params as CreateDbUserParams;
+      const { username, password, extraData } =
+        request.body as CreateDbUserBody;
 
-    console.log({ username, password, extraData });
+      console.log({ username, password, extraData });
 
-    if (!account_name && !validateAccountName(account_name)) {
-      reply.status(400).send({ error: "account_name is missing or invalid" });
-      throw new Error("account_name is required");
-    }
-    reply.send({ account_name, username, password, extraData });
+      reply.send({ account_name, username, password, extraData });
+    },
   });
 };
 

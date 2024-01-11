@@ -32,6 +32,17 @@ const routes = [
     component: () => import("src/Pages/Invite"),
     title: "AppsX Invite",
   },
+  {
+    path: "/db/:dbID",
+    component: () => import("src/Pages/Database"),
+    title: "AppsX DB",
+  },
+
+  {
+    path: "/users",
+    component: () => import("src/Pages/Users"),
+    title: "AppsX Users",
+  },
 ];
 
 router.addRoutesFromConfig(routes);

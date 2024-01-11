@@ -1,4 +1,21 @@
-export function Btn(props) {
+interface BtnProps {
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  color?:
+    | "primary"
+    | "secondary"
+    | "success"
+    | "danger"
+    | "warning"
+    | "info"
+    | "light"
+    | "dark";
+  onClick?: any;
+  type?: "button" | "submit" | "reset";
+  class?: string;
+  children?: any;
+}
+
+export function Btn(props: BtnProps) {
   let { size, color, onClick, type } = props;
   onClick = onClick || (() => {});
   color = color || "primary";
