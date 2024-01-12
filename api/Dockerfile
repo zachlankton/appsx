@@ -6,6 +6,6 @@ COPY . .
 RUN rm .env*
 
 RUN npm ci
-RUN npm run build:ts
+RUN npm run build
 
 CMD ["node", "server.js"]

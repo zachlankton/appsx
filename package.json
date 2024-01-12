@@ -21,6 +21,7 @@
     "@clerk/clerk-js": "^4.68.1",
     "@rezact/rezact": "v1.0.15-beta.37",
     "@tailwindcss/forms": "^0.5.7",
-    "boxicons": "^2.1.4"
+    "boxicons": "^2.1.4",
+    "monaco-editor": "^0.45.0"
   }
 }

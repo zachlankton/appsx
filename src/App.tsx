@@ -20,7 +20,7 @@ function getAcct() {
       return;
     }
 
-    const dbKeys = Object.keys(data.acctInfo.databases);
+    const dbKeys = Object.keys(data.acctInfo?.databases || {});
     const databases = dbKeys.map((key) => ({
       ...data.acctInfo.databases[key],
       id: key,
@@ -71,7 +71,7 @@ export function Page({ router }) {
             label="Database Name"
             name="db-name"
           />
-          <Btn class=" mt-2 w-full" type="submit" color="danger" size="xl">
+          <Btn class=" mt-2 w-full" type="submit" size="lg">
             Create Database
           </Btn>
         </form>
